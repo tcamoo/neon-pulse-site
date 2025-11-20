@@ -49,7 +49,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
            <div className="flex items-center gap-6 mb-1 md:mb-2">
               <button className="text-slate-400 hover:text-white transition-colors"><SkipBack size={20} /></button>
               <button 
-                onClick={(e: React.MouseEvent) => { e.stopPropagation(); onPlayToggle(); }}
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); onPlayToggle(); }}
                 className="w-10 h-10 rounded-full bg-white text-midnight flex items-center justify-center hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,255,255,0.3)]"
               >
                  {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}

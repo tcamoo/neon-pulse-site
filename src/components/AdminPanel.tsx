@@ -1,8 +1,8 @@
 
-import React, { useState, useRef } from 'react';
-import type { Track, SiteData, Article, Artist, FeaturedAlbum } from '../types';
-import { motion } from 'framer-motion';
-import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Cloud, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Menu, Type, Mail, Key, RefreshCw, Save, Disc, Album, Phone, MapPin, FileEdit } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import type { Track, SiteData, Article, Artist, FeaturedAlbum, CloudConfig } from '../types';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Cloud, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Menu, Type, Mail, Key, RefreshCw, Save, Disc, Album, Phone, MapPin, FileEdit, ToggleLeft, ToggleRight, CloudLightning, CloudRain, Eye, EyeOff } from 'lucide-react';
 
 interface AdminPanelProps {
   data: SiteData;
@@ -11,6 +11,7 @@ interface AdminPanelProps {
 }
 
 type Tab = 'general' | 'music' | 'articles' | 'artists' | 'cloud' | 'contact';
+type CloudProvider = 'ali' | 'one' | 'cf' | null;
 
 // Interactive Text Component for Header
 const SonicText = ({ text }: { text: string }) => {
@@ -98,6 +99,97 @@ const UploadProgressWidget = ({ progress, speed, remaining, active }: { progress
     );
 }
 
+const CloudConfigForm = ({ 
+    config, 
+    onSave, 
+    onCancel, 
+    label, 
+    color 
+}: { 
+    config: CloudConfig, 
+    onSave: (newConfig: CloudConfig) => void, 
+    onCancel: () => void,
+    label: string,
+    color: string
+}) => {
+    const [localConfig, setLocalConfig] = useState<CloudConfig>(config);
+    const [showSecret, setShowSecret] = useState(false);
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0, height: 0 }} 
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="bg-black/40 border border-white/10 rounded-xl p-6 mt-4 space-y-4"
+        >
+            <div className="flex justify-between items-center border-b border-white/10 pb-2 mb-4">
+                <h5 className={`font-bold text-sm ${color}`}>配置 {label} 令牌</h5>
+                <button onClick={onCancel} className="text-slate-500 hover:text-white"><X size={16} /></button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Access Key / ID</label>
+                    <input 
+                        type="text" 
+                        className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
+                        value={localConfig.accessKey || ''}
+                        onChange={(e) => setLocalConfig({...localConfig, accessKey: e.target.value})}
+                        placeholder="Ex: LTAI5t8..."
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Secret Key</label>
+                    <div className="relative">
+                        <input 
+                            type={showSecret ? "text" : "password"} 
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
+                            value={localConfig.secretKey || ''}
+                            onChange={(e) => setLocalConfig({...localConfig, secretKey: e.target.value})}
+                            placeholder="••••••••••••"
+                        />
+                        <button 
+                            className="absolute right-2 top-2 text-slate-500 hover:text-white"
+                            onClick={() => setShowSecret(!showSecret)}
+                        >
+                            {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                    </div>
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Bucket Name</label>
+                    <input 
+                        type="text" 
+                        className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
+                        value={localConfig.bucket || ''}
+                        onChange={(e) => setLocalConfig({...localConfig, bucket: e.target.value})}
+                        placeholder="my-music-bucket"
+                    />
+                </div>
+                <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-slate-500 uppercase">Endpoint / Region</label>
+                    <input 
+                        type="text" 
+                        className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
+                        value={localConfig.endpoint || ''}
+                        onChange={(e) => setLocalConfig({...localConfig, endpoint: e.target.value})}
+                        placeholder="oss-cn-shanghai.aliyuncs.com"
+                    />
+                </div>
+            </div>
+
+            <div className="flex justify-end pt-2">
+                <button 
+                    onClick={() => onSave({...localConfig, enabled: true})}
+                    className={`px-4 py-2 rounded-lg font-bold text-xs text-white flex items-center gap-2 ${color.replace('text-', 'bg-')}`}
+                >
+                    <Save size={14} /> 保存并连接
+                </button>
+            </div>
+        </motion.div>
+    );
+};
+
 const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) => {
   const [activeTab, setActiveTab] = useState<Tab>('general');
   
@@ -128,10 +220,28 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   // --- State for Featured Album Upload ---
   const albumImageInputRef = useRef<HTMLInputElement>(null);
 
-  // --- State for Uploads ---
+  // --- State for Uploads & Cloud ---
   const [showCloudPicker, setShowCloudPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState<'music' | 'image'>('music'); 
   const [pickerTarget, setPickerTarget] = useState<'article' | 'track' | 'hero' | 'album'>('track');
+  const [pickerProvider, setPickerProvider] = useState<'ali' | 'one' | 'cf' | 'local'>('local');
+  
+  // KV Sync Secret (Separate from File Storage Keys)
+  const [kvSyncSecret, setKvSyncSecret] = useState(() => {
+      return localStorage.getItem('ves_sync_secret') || '';
+  });
+  
+  // Which Cloud Config Form is Open
+  const [editingCloud, setEditingCloud] = useState<CloudProvider>(null);
+
+  // Simulated Cloud Files
+  const [simulatedCloudFiles] = useState<{name: string, size: string, url: string, provider: 'ali' | 'one' | 'cf', type: 'audio' | 'image'}[]>([
+      { name: 'VES_Demo_v1.mp3', size: '8.4 MB', url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3', provider: 'ali', type: 'audio' },
+      { name: 'Cover_Art_Final.jpg', size: '2.1 MB', url: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=2070&auto=format&fit=crop', provider: 'ali', type: 'image' },
+      { name: 'Live_Shanghai_Set.wav', size: '42.1 MB', url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Elipses.mp3', provider: 'ali', type: 'audio' },
+      { name: 'Instrumental_04.mp3', size: '5.2 MB', url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Algorithms.mp3', provider: 'one', type: 'audio' },
+      { name: 'Master_Tape_R2.flac', size: '55.8 MB', url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3', provider: 'cf', type: 'audio' },
+  ]);
   
   // Sync Status State
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
@@ -210,13 +320,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   
   // --- Sync Functions ---
   const handleSyncPush = async () => {
-      const key = data.integrations.cloudflare.accessKey;
-      if (!key) {
+      if (!kvSyncSecret) {
           setSyncMessage("错误：请输入同步密钥 (Secret Key)");
           setSyncStatus('error');
           return;
       }
       
+      // Save secret to local storage
+      localStorage.setItem('ves_sync_secret', kvSyncSecret);
+
       setSyncStatus('syncing');
       try {
           // Send PUT request to save data to KV
@@ -224,7 +336,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
               method: 'PUT',
               headers: {
                   'Content-Type': 'application/json',
-                  'x-auth-key': key
+                  'x-auth-key': kvSyncSecret
               },
               body: JSON.stringify(data)
           });
@@ -246,6 +358,61 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       setTimeout(() => {
           if (syncStatus === 'success') setSyncStatus('idle');
       }, 5000);
+  };
+
+  // --- Cloud Config Handlers ---
+  const handleCloudToggle = (provider: 'ali' | 'one' | 'cf') => {
+      let key: keyof SiteData['integrations'];
+      if (provider === 'ali') key = 'aliDrive';
+      else if (provider === 'one') key = 'oneDrive';
+      else key = 'cloudflare';
+
+      const currentConfig = data.integrations[key];
+
+      if (currentConfig.enabled) {
+          // Disconnect
+          updateData(prev => ({
+              ...prev,
+              integrations: { ...prev.integrations, [key]: { ...prev.integrations[key], enabled: false } }
+          }));
+          setEditingCloud(null);
+      } else {
+          // Open Edit Mode to Connect
+          setEditingCloud(provider);
+      }
+  };
+
+  const handleSaveCloudConfig = (provider: 'ali' | 'one' | 'cf', config: CloudConfig) => {
+      let key: keyof SiteData['integrations'];
+      if (provider === 'ali') key = 'aliDrive';
+      else if (provider === 'one') key = 'oneDrive';
+      else key = 'cloudflare';
+
+      updateData(prev => ({
+          ...prev,
+          integrations: { ...prev.integrations, [key]: config }
+      }));
+      setEditingCloud(null);
+  };
+
+  const handleCloudFileSelect = (file: {url: string, type: 'audio' | 'image', name: string}) => {
+      setShowCloudPicker(false);
+      
+      simulateUpload(() => {
+          if (pickerTarget === 'hero') {
+              updateData(prev => ({ ...prev, hero: { ...prev.hero, heroImage: file.url } }));
+          } else if (pickerTarget === 'album') {
+              updateData(prev => ({ ...prev, featuredAlbum: { ...prev.featuredAlbum, coverUrl: file.url } }));
+          } else if (pickerTarget === 'track') {
+              setNewTrack(prev => ({ ...prev, audioUrl: file.url }));
+          } else if (pickerTarget === 'article') {
+              if (pickerMode === 'image') {
+                  setNewArticle(prev => ({ ...prev, coverUrl: file.url }));
+              } else {
+                   // Article Audio logic (if needed later)
+              }
+          }
+      });
   };
 
   const handleGenericUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'hero' | 'album' | 'track' | 'article') => {
@@ -410,7 +577,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                      {!uploadStatus.active && (
                                          <div className="flex gap-3">
                                              <button 
-                                                 onClick={() => { setPickerTarget('hero'); setPickerMode('image'); setShowCloudPicker(true); }}
+                                                 onClick={() => { setPickerTarget('hero'); setPickerMode('image'); setPickerProvider('local'); setShowCloudPicker(true); }}
                                                  className="px-4 py-2 bg-hot-pink hover:bg-white hover:text-midnight text-white rounded-lg font-bold text-xs transition-all flex items-center gap-2"
                                              >
                                                  <ImageIcon size={16}/> 上传新图片
@@ -483,7 +650,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                 <div className="aspect-square rounded-xl overflow-hidden border border-white/20 shadow-2xl bg-black relative group">
                                     <img src={data.featuredAlbum.coverUrl} alt="Featured Cover" className="w-full h-full object-cover" />
                                     <button 
-                                        onClick={() => { setPickerTarget('album'); setPickerMode('image'); setShowCloudPicker(true); }}
+                                        onClick={() => { setPickerTarget('album'); setPickerMode('image'); setPickerProvider('local'); setShowCloudPicker(true); }}
                                         className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 text-white font-bold text-xs"
                                     >
                                         <Upload size={24} /> 更换封面
@@ -534,7 +701,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                 {newTrack.sourceType === 'native' ? (
                                     <div className="flex gap-2">
                                         <input className="flex-1 bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none text-xs font-mono" value={newTrack.audioUrl} onChange={e => setNewTrack({...newTrack, audioUrl: e.target.value})} placeholder="输入音频URL (mp3/wav)..." />
-                                        <button onClick={() => { setPickerTarget('track'); setPickerMode('music'); setShowCloudPicker(true); }} className="bg-electric-cyan/10 text-electric-cyan px-4 rounded-lg border border-electric-cyan/20 flex items-center gap-2 text-xs font-bold"><Cloud size={16} /> 选择文件</button>
+                                        <button onClick={() => { setPickerTarget('track'); setPickerMode('music'); setPickerProvider('local'); setShowCloudPicker(true); }} className="bg-electric-cyan/10 text-electric-cyan px-4 rounded-lg border border-electric-cyan/20 flex items-center gap-2 text-xs font-bold"><Cloud size={16} /> 选择文件</button>
                                         <input type="file" accept="audio/*" className="hidden" ref={audioInputRef} onChange={(e) => handleGenericUpload(e, 'track')} />
                                     </div>
                                 ) : (
@@ -599,7 +766,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                  <div className="flex gap-2 items-center">
                                      {newArticle.coverUrl && <img src={newArticle.coverUrl} className="w-10 h-10 rounded object-cover border border-white/20" alt="Preview"/>}
                                      <button 
-                                        onClick={() => { setPickerTarget('article'); setPickerMode('image'); setShowCloudPicker(true); }}
+                                        onClick={() => { setPickerTarget('article'); setPickerMode('image'); setPickerProvider('local'); setShowCloudPicker(true); }}
                                         className="flex-1 bg-black/50 p-3 rounded-lg border border-white/10 text-slate-300 hover:text-white hover:border-lime-punch transition-all text-xs font-bold flex items-center justify-center gap-2"
                                      >
                                          <ImageIcon size={16}/> {newArticle.coverUrl ? '更换图片' : '上传/选择图片'}
@@ -724,43 +891,38 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                 </motion.div>
              )}
 
-            {/* --- TAB: CLOUD (Pages Sync) --- */}
+            {/* --- TAB: CLOUD (Enhanced: KV + File Storage) --- */}
             {activeTab === 'cloud' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto">
-                    <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/5">
-                        <RefreshCw size={18} className="text-orange-500"/>
-                        <h3 className="text-orange-500 font-mono text-sm uppercase tracking-widest">Cloudflare KV 数据同步</h3>
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-10 max-w-4xl mx-auto">
+                    <div className="flex items-center gap-2 border-b border-white/5 pb-4">
+                        <Cloud size={18} className="text-orange-500"/>
+                        <h3 className="text-orange-500 font-mono text-sm uppercase tracking-widest">云端服务集成 (Cloud Services)</h3>
                     </div>
-                    
+
+                    {/* Section 1: System Sync (KV) */}
                     <div className="bg-orange-500/10 border border-orange-500/20 p-6 rounded-2xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-4 text-orange-500/10"><Cloud size={120}/></div>
+                        <div className="absolute top-0 right-0 p-4 text-orange-500/10"><Database size={100}/></div>
                         
                         <div className="relative z-10">
                             <h4 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
-                                <Database size={20} className="text-orange-500"/> 原生云端同步
+                                <RefreshCw size={20} className="text-orange-500"/> 全站数据同步 (System Sync)
                             </h4>
                             <p className="text-sm text-slate-300 mb-6 max-w-lg leading-relaxed">
-                                将此后台的所有数据永久保存到 Cloudflare KV。
-                                请在 Cloudflare Dashboard 的 Pages 设置中，添加环境变量 <code>SYNC_SECRET</code>，并在下方输入相同的值。
+                                将此后台的配置数据（歌单、文章、设置）同步到 Cloudflare KV。
+                                请确保已在 Pages 后台设置环境变量 <code>SYNC_SECRET</code>。
                             </p>
 
                             <div className="space-y-4 max-w-md">
                                 <div className="space-y-2">
                                     <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-                                        <Key size={10} /> Sync Secret Key (同步密钥)
+                                        <Key size={10} /> Sync Secret Key
                                     </label>
                                     <input 
                                         type="password" 
                                         className="w-full bg-black/40 border border-white/10 rounded-lg p-3 text-white focus:border-orange-500 outline-none font-mono tracking-widest"
-                                        placeholder="在此输入密钥..."
-                                        value={data.integrations.cloudflare.accessKey || ''}
-                                        onChange={(e) => updateData(prev => ({
-                                            ...prev,
-                                            integrations: {
-                                                ...prev.integrations,
-                                                cloudflare: { ...prev.integrations.cloudflare, enabled: true, accessKey: e.target.value }
-                                            }
-                                        }))}
+                                        placeholder="输入同步密钥..."
+                                        value={kvSyncSecret}
+                                        onChange={(e) => setKvSyncSecret(e.target.value)}
                                     />
                                 </div>
 
@@ -793,6 +955,130 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                             </div>
                         </div>
                     </div>
+
+                    {/* Section 2: File Object Storage */}
+                    <div>
+                        <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                            <HardDrive size={20} className="text-blue-400"/> 文件对象存储 (Object Storage)
+                        </h4>
+                        <p className="text-sm text-slate-400 mb-6">
+                            配置第三方存储服务以支持大文件（音频/图片）上传。
+                        </p>
+
+                        <div className="grid gap-4">
+                            {/* AliDrive Toggle */}
+                            <div className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-orange-500/30 transition-all">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${data.integrations.aliDrive?.enabled ? 'bg-orange-500 text-white' : 'bg-white/10 text-slate-500'}`}>
+                                            <CloudLightning size={24} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-white font-bold flex items-center gap-2">
+                                                阿里云 OSS
+                                                {data.integrations.aliDrive?.enabled && <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">已连接</span>}
+                                            </h4>
+                                            <p className="text-xs text-slate-500">适用于国内高速访问。</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleCloudToggle('ali')}
+                                        className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 transition-all
+                                        ${data.integrations.aliDrive?.enabled ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white' : 'bg-white/10 text-white hover:bg-orange-500'}`}
+                                    >
+                                        {data.integrations.aliDrive?.enabled ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
+                                        {data.integrations.aliDrive?.enabled ? '断开连接' : '连接服务'}
+                                    </button>
+                                </div>
+                                
+                                <AnimatePresence>
+                                    {editingCloud === 'ali' && !data.integrations.aliDrive?.enabled && (
+                                        <CloudConfigForm 
+                                            label="阿里云 OSS" 
+                                            color="text-orange-500"
+                                            config={data.integrations.aliDrive}
+                                            onSave={(config) => handleSaveCloudConfig('ali', config)}
+                                            onCancel={() => setEditingCloud(null)}
+                                        />
+                                    )}
+                                </AnimatePresence>
+                            </div>
+
+                            {/* OneDrive Toggle */}
+                            <div className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-blue-500/30 transition-all">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${data.integrations.oneDrive?.enabled ? 'bg-blue-500 text-white' : 'bg-white/10 text-slate-500'}`}>
+                                            <CloudRain size={24} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-white font-bold flex items-center gap-2">
+                                                Microsoft OneDrive 
+                                                {data.integrations.oneDrive?.enabled && <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">已连接</span>}
+                                            </h4>
+                                            <p className="text-xs text-slate-500">Office 365 生态集成。</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleCloudToggle('one')}
+                                        className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 transition-all
+                                        ${data.integrations.oneDrive?.enabled ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white' : 'bg-white/10 text-white hover:bg-blue-500'}`}
+                                    >
+                                        {data.integrations.oneDrive?.enabled ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
+                                        {data.integrations.oneDrive?.enabled ? '断开连接' : '连接服务'}
+                                    </button>
+                                </div>
+                                <AnimatePresence>
+                                    {editingCloud === 'one' && !data.integrations.oneDrive?.enabled && (
+                                        <CloudConfigForm 
+                                            label="OneDrive" 
+                                            color="text-blue-500"
+                                            config={data.integrations.oneDrive}
+                                            onSave={(config) => handleSaveCloudConfig('one', config)}
+                                            onCancel={() => setEditingCloud(null)}
+                                        />
+                                    )}
+                                </AnimatePresence>
+                            </div>
+
+                            {/* Cloudflare Toggle */}
+                            <div className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-yellow-500/30 transition-all">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${data.integrations.cloudflare?.enabled ? 'bg-yellow-500 text-midnight' : 'bg-white/10 text-slate-500'}`}>
+                                            <Database size={24} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-white font-bold flex items-center gap-2">
+                                                Cloudflare R2 
+                                                {data.integrations.cloudflare?.enabled && <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">已连接</span>}
+                                            </h4>
+                                            <p className="text-xs text-slate-500">零出口费用存储方案。</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleCloudToggle('cf')}
+                                        className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 transition-all
+                                        ${data.integrations.cloudflare?.enabled ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white' : 'bg-white/10 text-white hover:bg-yellow-500'}`}
+                                    >
+                                        {data.integrations.cloudflare?.enabled ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
+                                        {data.integrations.cloudflare?.enabled ? '断开连接' : '连接服务'}
+                                    </button>
+                                </div>
+                                 <AnimatePresence>
+                                    {editingCloud === 'cf' && !data.integrations.cloudflare?.enabled && (
+                                        <CloudConfigForm 
+                                            label="Cloudflare R2" 
+                                            color="text-yellow-500"
+                                            config={data.integrations.cloudflare}
+                                            onSave={(config) => handleSaveCloudConfig('cf', config)}
+                                            onCancel={() => setEditingCloud(null)}
+                                        />
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        </div>
+                    </div>
                 </motion.div>
             )}
 
@@ -802,25 +1088,63 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       {/* Cloud Picker Modal (Simplified) */}
       {showCloudPicker && (
         <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center backdrop-blur-sm">
-            <div className="bg-[#0F172A] border border-white/10 p-8 rounded-2xl max-w-md w-full text-center shadow-2xl">
-                 <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 text-white">
-                     <HardDrive size={32} />
+            <div className="bg-[#0F172A] border border-white/10 w-full max-w-2xl h-[600px] flex flex-col rounded-2xl shadow-2xl overflow-hidden">
+                 <div className="p-4 border-b border-white/10 flex justify-between items-center bg-surface">
+                      <h3 className="font-bold text-white flex items-center gap-2">
+                          <Cloud size={18} className="text-electric-cyan" /> 选择 {pickerMode === 'image' ? '图片' : '音频'}
+                      </h3>
+                      <button onClick={() => setShowCloudPicker(false)} className="p-1 hover:bg-white/10 rounded-full"><X size={20} /></button>
                  </div>
-                 <h3 className="text-white font-bold text-xl mb-2">本地上传模式</h3>
-                 <p className="text-slate-400 text-sm mb-6">请点击"上传"按钮直接选择本地文件。如果您配置了 R2/OSS，此处将显示云端文件浏览器。</p>
-                 <div className="flex gap-4 justify-center">
-                     <button onClick={() => {
-                         // Trigger hidden file input based on target
-                         if (pickerTarget === 'hero') heroImageInputRef.current?.click();
-                         else if (pickerTarget === 'album') albumImageInputRef.current?.click();
-                         else if (pickerTarget === 'track') audioInputRef.current?.click();
-                         else if (pickerTarget === 'article') {
-                            if (pickerMode === 'image') articleImageInputRef.current?.click();
-                            else audioInputRef.current?.click(); // Fallback logic if BGM upload needed in article
-                         }
-                         setShowCloudPicker(false);
-                     }} className="bg-electric-cyan text-black font-bold px-6 py-2 rounded-lg hover:bg-white">选择本地文件</button>
-                     <button onClick={() => setShowCloudPicker(false)} className="bg-white/10 text-white px-4 py-2 rounded-lg hover:bg-white/20">取消</button>
+
+                 <div className="flex flex-1 overflow-hidden">
+                      {/* Sidebar */}
+                      <div className="w-48 bg-black/20 border-r border-white/10 p-2 flex flex-col gap-1">
+                          <button onClick={() => setPickerProvider('local')} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left ${pickerProvider === 'local' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}><HardDrive size={16} /> 本地设备</button>
+                          <button onClick={() => setPickerProvider('ali')} disabled={!data.integrations.aliDrive?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left ${pickerProvider === 'ali' ? 'bg-orange-500/20 text-orange-500' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><CloudLightning size={16} /> 阿里云 OSS</button>
+                          <button onClick={() => setPickerProvider('one')} disabled={!data.integrations.oneDrive?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left ${pickerProvider === 'one' ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><CloudRain size={16} /> OneDrive</button>
+                          <button onClick={() => setPickerProvider('cf')} disabled={!data.integrations.cloudflare?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left ${pickerProvider === 'cf' ? 'bg-yellow-500/20 text-yellow-500' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><Database size={16} /> Cloudflare R2</button>
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 p-4 overflow-y-auto bg-black/40 custom-scrollbar">
+                            {pickerProvider === 'local' ? (
+                                <div className="flex flex-col items-center justify-center h-full border-2 border-dashed border-white/10 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer" onClick={() => {
+                                    if (pickerTarget === 'hero') heroImageInputRef.current?.click();
+                                    else if (pickerTarget === 'album') albumImageInputRef.current?.click();
+                                    else if (pickerTarget === 'track') audioInputRef.current?.click();
+                                    else if (pickerTarget === 'article') {
+                                        if (pickerMode === 'image') articleImageInputRef.current?.click();
+                                        else audioInputRef.current?.click();
+                                    }
+                                    setShowCloudPicker(false); 
+                                }}>
+                                    <Upload size={40} className="text-slate-500 mb-4" />
+                                    <p className="text-slate-400 text-sm font-bold">点击上传本地 {pickerMode === 'image' ? '图片' : '音频'}</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {simulatedCloudFiles.filter(f => f.provider === pickerProvider && f.type === (pickerMode === 'music' ? 'audio' : 'image')).length > 0 ? (
+                                        simulatedCloudFiles.filter(f => f.provider === pickerProvider && f.type === (pickerMode === 'music' ? 'audio' : 'image')).map((file, i) => (
+                                            <div key={i} onClick={() => handleCloudFileSelect(file)} className="group flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/5 hover:border-electric-cyan/50 hover:bg-electric-cyan/10 cursor-pointer transition-all">
+                                                <div className="flex items-center gap-3">
+                                                    {file.type === 'audio' ? <Music size={18} className="text-slate-500" /> : <ImageIcon size={18} className="text-slate-500" />}
+                                                    <div>
+                                                        <div className="text-sm font-bold text-slate-200 group-hover:text-white">{file.name}</div>
+                                                        <div className="text-xs text-slate-500">{file.size}</div>
+                                                    </div>
+                                                </div>
+                                                <CheckCircle2 size={18} className="opacity-0 group-hover:opacity-100 text-electric-cyan" />
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-10 text-slate-500 flex flex-col items-center gap-2">
+                                            <AlertCircle size={24} />
+                                            <span>该云端文件夹为空</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                      </div>
                  </div>
             </div>
         </div>

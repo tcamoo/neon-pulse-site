@@ -1,8 +1,8 @@
 
 import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Play, Pause, SkipForward, SkipBack, Maximize2, X } from 'lucide-react';
-import { Track } from '../types';
+import type { Track } from '../types';
 import ProgressBar from './ProgressBar';
 
 interface GlobalPlayerProps {

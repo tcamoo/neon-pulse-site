@@ -2,7 +2,7 @@
 import React from 'react';
 import { Instagram, Twitter, Youtube, ArrowUpRight, Radio, Zap } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { ContactConfig } from '../types';
+import type { ContactConfig } from '../types';
 
 interface FooterProps {
     contactData: ContactConfig;

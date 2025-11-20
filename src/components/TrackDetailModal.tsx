@@ -37,7 +37,7 @@ const TrackDetailModal: React.FC<TrackDetailModalProps> = ({
         exit={{ scale: 0.9, y: 50 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
         className="relative w-full max-w-6xl h-[90vh] bg-[#0F172A] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
         {/* Close Button */}
         <button 

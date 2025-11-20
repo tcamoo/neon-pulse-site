@@ -74,7 +74,7 @@ const ArticleSection: React.FC<ArticleSectionProps> = ({ articles, onPlayLinkedT
                             {/* Floating Music Player if attached */}
                             {article.linkedTrackId && (
                                 <button 
-                                    onClick={(e) => {
+                                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
                                         e.preventDefault();
                                         onPlayLinkedTrack(article.linkedTrackId!);
                                     }}

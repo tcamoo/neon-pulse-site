@@ -53,10 +53,15 @@ export interface FeaturedAlbum {
 
 export interface CloudConfig {
   enabled: boolean;
-  accessKey: string;
-  secretKey: string;
-  bucket: string;
-  endpoint: string;
+  // S3 Compatible (Aliyun OSS, R2)
+  accessKey?: string;
+  secretKey?: string;
+  bucket?: string;
+  endpoint?: string;
+  // OAuth / Token Based (OneDrive, Aliyun Drive Personal)
+  clientId?: string;
+  refreshToken?: string;
+  authType?: 's3' | 'oauth'; 
 }
 
 export interface CloudIntegrations {

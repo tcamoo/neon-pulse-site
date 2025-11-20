@@ -13,9 +13,12 @@ import TrackDetailModal from './components/TrackDetailModal';
 import GlobalPlayer from './components/GlobalPlayer';
 import { AnimatePresence, motion } from 'framer-motion';
 import type { SiteData, Track } from './types';
+import { Lock, ArrowRight, ShieldAlert } from 'lucide-react';
 
 // Initial Data Configuration
+// Now attempts to read from Cloudflare/Vite Environment Variable VITE_ADMIN_PASSWORD
 const INITIAL_DATA: SiteData = {
+  adminPassword: import.meta.env.VITE_ADMIN_PASSWORD || 'admin', // Default is 'admin' if env var is not set
   navigation: [
     { id: 'nav_1', label: '音乐作品', targetId: 'music' },
     { id: 'nav_2', label: '动态现场', targetId: 'live' },
@@ -119,7 +122,14 @@ const INITIAL_DATA: SiteData = {
 
 const App: React.FC = () => {
   const [siteData, setSiteData] = useState<SiteData>(INITIAL_DATA);
-  const [isAdmin, setIsAdmin] = useState(true); // Enabled by default for preview
+  
+  // Admin Logic
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [loginError, setLoginError] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
   const [isLoading, setIsLoading] = useState(true);
   
   // Audio Logic
@@ -146,6 +156,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (!audioRef.current) {
         audioRef.current = new Audio();
+        // Use anonymous by default, but this might need to change for Netease
         audioRef.current.crossOrigin = "anonymous";
         
         // Event Listeners
@@ -182,6 +193,31 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleAdminToggle = () => {
+      if (isAuthenticated) {
+          setIsAdminOpen(true);
+      } else {
+          setShowPasswordModal(true);
+      }
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+      e.preventDefault();
+      // Check against the password in siteData (which can be changed)
+      const currentPass = siteData.adminPassword || 'admin';
+      
+      if (passwordInput === currentPass) {
+          setIsAuthenticated(true);
+          setShowPasswordModal(false);
+          setIsAdminOpen(true);
+          setPasswordInput('');
+          setLoginError(false);
+      } else {
+          setLoginError(true);
+          // Shake effect is handled by framer-motion in the JSX
+      }
+  };
+
   const handlePlayTrack = async (track: Track) => {
     if (!audioRef.current) return;
 
@@ -189,7 +225,6 @@ const App: React.FC = () => {
     if (!audioContextRef.current) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        // Fix: use the polyfilled class
         audioContextRef.current = new AudioContextClass();
         analyserRef.current = audioContextRef.current.createAnalyser();
         // Higher FFT size for better resolution in Visualizer (default 256 -> 1024)
@@ -230,6 +265,15 @@ const App: React.FC = () => {
                 audioRef.current.pause();
                 audioRef.current.currentTime = 0;
                 
+                // Handle CORS for Netease or external sources that might block canvas analysis
+                // If it is Netease (163.com), removing crossOrigin might be safer for playback, 
+                // though it stops the visualizer from receiving data due to CORS.
+                if (track.audioUrl.includes('music.163.com') || track.sourceType === 'netease') {
+                    audioRef.current.removeAttribute('crossOrigin');
+                } else {
+                    audioRef.current.crossOrigin = "anonymous";
+                }
+                
                 audioRef.current.src = track.audioUrl;
                 audioRef.current.load(); // Ensure the new source is loaded
                 
@@ -243,7 +287,7 @@ const App: React.FC = () => {
                     })
                     .catch(e => {
                         console.error("Playback failed:", e);
-                        alert("Playback failed: " + e.message);
+                        alert("Playback failed. The source might be restricted: " + e.message);
                     });
                 }
             } catch (err) {
@@ -307,6 +351,58 @@ const App: React.FC = () => {
         {isLoading && <Loader />}
       </AnimatePresence>
 
+      {/* Password Modal */}
+      <AnimatePresence>
+          {showPasswordModal && (
+              <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-[9999] bg-midnight/95 backdrop-blur-xl flex items-center justify-center p-4"
+              >
+                  <motion.div 
+                    initial={{ scale: 0.9, y: 20 }}
+                    animate={loginError ? { x: [-10, 10, -10, 10, 0], scale: 1, y: 0 } : { scale: 1, y: 0 }}
+                    exit={{ scale: 0.9, y: 20 }}
+                    transition={loginError ? { type: "spring", stiffness: 300, damping: 10 } : { duration: 0.3 }}
+                    className="bg-black border border-white/10 rounded-2xl p-8 w-full max-w-md relative overflow-hidden shadow-[0_0_50px_rgba(255,0,128,0.2)]"
+                  >
+                       <button 
+                            onClick={() => setShowPasswordModal(false)} 
+                            className="absolute top-4 right-4 text-slate-500 hover:text-white"
+                       >
+                           <ShieldAlert size={20} />
+                       </button>
+                       
+                       <div className="flex flex-col items-center gap-4 mb-8">
+                           <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-electric-cyan border border-electric-cyan/30">
+                               <Lock size={32} />
+                           </div>
+                           <h2 className="font-display font-bold text-2xl text-white tracking-wider">SYSTEM LOCKED</h2>
+                           <p className="text-slate-500 text-xs font-mono uppercase">Enter secure access token</p>
+                       </div>
+
+                       <form onSubmit={handleLogin} className="space-y-4">
+                           <div className="relative">
+                               <input 
+                                    type="password" 
+                                    autoFocus
+                                    value={passwordInput}
+                                    onChange={(e) => setPasswordInput(e.target.value)}
+                                    className={`w-full bg-white/5 border ${loginError ? 'border-red-500 text-red-500' : 'border-white/10 text-white'} rounded-xl px-4 py-3 outline-none focus:border-electric-cyan transition-colors text-center font-mono tracking-[0.5em] text-lg placeholder:text-slate-700`}
+                                    placeholder="••••••"
+                               />
+                           </div>
+                           {loginError && <p className="text-center text-red-500 text-xs font-mono animate-pulse">ACCESS DENIED: INVALID TOKEN</p>}
+                           <button type="submit" className="w-full bg-hot-pink hover:bg-white hover:text-midnight text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm shadow-lg shadow-hot-pink/20">
+                               Access <ArrowRight size={16} />
+                           </button>
+                       </form>
+                  </motion.div>
+              </motion.div>
+          )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {selectedDetailTrack && (
           <TrackDetailModal 
@@ -348,8 +444,8 @@ const App: React.FC = () => {
           transition={{ duration: 0.8 }}
         >
           <Navbar 
-            isAdmin={isAdmin} 
-            toggleAdmin={() => setIsAdmin(!isAdmin)} 
+            isAdmin={isAuthenticated} 
+            toggleAdmin={handleAdminToggle} 
             navItems={siteData.navigation}
           />
           
@@ -361,19 +457,6 @@ const App: React.FC = () => {
             <Hero data={siteData.hero} />
             
             <section id="music" className="relative z-20">
-                {/* Admin Panel Overlay */}
-                <AnimatePresence>
-                    {isAdmin && (
-                        <div className="container mx-auto max-w-6xl relative z-50 pt-24 px-6">
-                            <AdminPanel 
-                                data={siteData}
-                                updateData={setSiteData}
-                                onClose={() => setIsAdmin(false)} 
-                            />
-                        </div>
-                    )}
-                </AnimatePresence>
-
                 <MusicSection 
                     tracks={siteData.tracks} 
                     featuredAlbum={siteData.featuredAlbum}
@@ -401,6 +484,19 @@ const App: React.FC = () => {
           </main>
         </motion.div>
       )}
+      
+      {/* Admin Panel Overlay - Fullscreen Fixed */}
+      <AnimatePresence>
+        {isAdminOpen && (
+            <div className="fixed inset-0 z-[60]">
+                <AdminPanel 
+                    data={siteData}
+                    updateData={setSiteData}
+                    onClose={() => setIsAdminOpen(false)} 
+                />
+            </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

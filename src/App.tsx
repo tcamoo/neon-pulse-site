@@ -127,6 +127,7 @@ const App: React.FC = () => {
       const savedData = localStorage.getItem('ves_site_data');
       if (savedData) {
         const parsed = JSON.parse(savedData);
+        // Merge defaults to ensure new fields exist
         return { ...INITIAL_DATA, ...parsed };
       }
     } catch (e) {
@@ -137,37 +138,28 @@ const App: React.FC = () => {
 
   // --- Cloud Synchronization Logic (Native Pages Functions) ---
   useEffect(() => {
-      // On load, if Cloudflare sync is enabled with a key, try to fetch latest data
-      const cfConfig = siteData.integrations.cloudflare;
-      
       const fetchData = async () => {
-          if (cfConfig.enabled && cfConfig.accessKey) {
-              try {
-                  console.log("Attempting to sync from Cloudflare KV...");
-                  const res = await fetch('/api/sync', {
-                      method: 'GET',
-                      headers: {
-                          'x-auth-key': cfConfig.accessKey
-                      }
-                  });
-                  
-                  if (res.ok) {
-                      const cloudData = await res.json();
-                      if (cloudData && typeof cloudData === 'object') {
-                          console.log("Cloud sync successful!");
-                          setSiteData(prev => ({ ...prev, ...cloudData }));
-                      }
-                  } else {
-                       console.warn("Cloud sync failed:", res.status);
+          try {
+              // GET request does not need headers, it is public read
+              const res = await fetch('/api/sync', {
+                  method: 'GET'
+              });
+              
+              if (res.ok) {
+                  const cloudData = await res.json();
+                  if (cloudData && typeof cloudData === 'object') {
+                      console.log("Cloud sync successful (Public Read)");
+                      setSiteData(prev => ({ ...prev, ...cloudData }));
                   }
-              } catch (err) {
-                  console.error("Cloud sync error:", err);
+              } else {
+                   console.warn("Cloud sync skipped (No data or API error):", res.status);
               }
+          } catch (err) {
+              console.error("Cloud sync connection error:", err);
           }
       };
 
       fetchData();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run once on mount
 
   // Save to localStorage whenever siteData changes

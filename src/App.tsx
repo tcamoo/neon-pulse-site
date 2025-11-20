@@ -121,7 +121,63 @@ const INITIAL_DATA: SiteData = {
 };
 
 const App: React.FC = () => {
-  const [siteData, setSiteData] = useState<SiteData>(INITIAL_DATA);
+  // Initialize state from localStorage first (fastest), then try Cloud sync
+  const [siteData, setSiteData] = useState<SiteData>(() => {
+    try {
+      const savedData = localStorage.getItem('ves_site_data');
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        return { ...INITIAL_DATA, ...parsed };
+      }
+    } catch (e) {
+      console.warn('Failed to load site data from localStorage', e);
+    }
+    return INITIAL_DATA;
+  });
+
+  // --- Cloud Synchronization Logic (Native Pages Functions) ---
+  useEffect(() => {
+      // On load, if Cloudflare sync is enabled with a key, try to fetch latest data
+      const cfConfig = siteData.integrations.cloudflare;
+      
+      const fetchData = async () => {
+          if (cfConfig.enabled && cfConfig.accessKey) {
+              try {
+                  console.log("Attempting to sync from Cloudflare KV...");
+                  const res = await fetch('/api/sync', {
+                      method: 'GET',
+                      headers: {
+                          'x-auth-key': cfConfig.accessKey
+                      }
+                  });
+                  
+                  if (res.ok) {
+                      const cloudData = await res.json();
+                      if (cloudData && typeof cloudData === 'object') {
+                          console.log("Cloud sync successful!");
+                          setSiteData(prev => ({ ...prev, ...cloudData }));
+                      }
+                  } else {
+                       console.warn("Cloud sync failed:", res.status);
+                  }
+              } catch (err) {
+                  console.error("Cloud sync error:", err);
+              }
+          }
+      };
+
+      fetchData();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run once on mount
+
+  // Save to localStorage whenever siteData changes
+  useEffect(() => {
+    try {
+      localStorage.setItem('ves_site_data', JSON.stringify(siteData));
+    } catch (e) {
+      console.error('Failed to save site data to localStorage', e);
+    }
+  }, [siteData]);
   
   // Admin Logic
   const [isAdminOpen, setIsAdminOpen] = useState(false);
@@ -172,7 +228,6 @@ const App: React.FC = () => {
           setLoginError(false);
       } else {
           setLoginError(true);
-          // Shake effect is handled by framer-motion in the JSX
       }
   };
 
@@ -220,9 +275,11 @@ const App: React.FC = () => {
     newAudio.addEventListener('play', () => setIsPlaying(true));
     newAudio.addEventListener('pause', () => setIsPlaying(false));
     newAudio.addEventListener('error', (e) => {
-        console.error("Audio playback error:", e);
-        setIsPlaying(false);
-        alert("无法播放音频 (Audio Error): 可能是因为跨域限制或链接无效。");
+        // Only log real errors, avoid alerting on standard interruptions
+        const target = e.target as HTMLAudioElement;
+        if (target.error && target.error.code !== 0) {
+             console.error("Audio playback error:", target.error);
+        }
     });
 
     // Update Ref
@@ -247,30 +304,39 @@ const App: React.FC = () => {
 
             if (analyserRef.current && audioContextRef.current) {
                  // Create a new source node for this specific element
-                 // Note: createMediaElementSource can only be called once per element. 
-                 // Since we created a NEW 'newAudio' instance, this is safe.
                  const source = audioContextRef.current.createMediaElementSource(newAudio);
                  source.connect(analyserRef.current);
             }
             setAnalyser(analyserRef.current);
         } catch (err) {
-            console.warn("Visualizer setup failed (likely CORS), falling back to native audio.", err);
+            console.warn("Visualizer setup failed (likely CORS), falling back to simulated visuals.", err);
             setAnalyser(null);
         }
     } else {
-        // Restricted Mode: Disable Visualizer
+        // Restricted Mode: Disable Real Visualizer (Visualizer component will handle simulation)
         setAnalyser(null);
     }
 
     // 5. Start Playback
     try {
-        await newAudio.play();
-        setCurrentTrackId(track.id);
-        setShowGlobalPlayer(true);
-        setIsPlaying(true);
+        const playPromise = newAudio.play();
+        if (playPromise !== undefined) {
+            playPromise.then(() => {
+                // Playback started successfully
+                setCurrentTrackId(track.id);
+                setShowGlobalPlayer(true);
+                setIsPlaying(true);
+            }).catch(e => {
+                // Auto-play policy or abort error
+                if (e.name === 'AbortError') {
+                     // Ignore abort errors caused by rapid track switching
+                     return;
+                }
+                console.error("Playback start failed:", e);
+            });
+        }
     } catch (e) {
-        console.error("Play request failed", e);
-        // alert("Playback failed: " + (e as Error).message);
+        console.error("Synchronous playback error", e);
     }
   };
 
@@ -438,8 +504,8 @@ const App: React.FC = () => {
             navItems={siteData.navigation}
           />
           
-          {/* Pass analyser to Visualizer */}
-          <Visualizer analyser={analyser} />
+          {/* Pass analyser and playing state to Visualizer */}
+          <Visualizer analyser={analyser} isPlaying={isPlaying} />
 
           <main className="relative w-full">
             

@@ -542,11 +542,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       {/* Header */}
       <div className="bg-surface/50 backdrop-blur-md p-4 md:p-6 flex justify-between items-center border-b border-white/5 shrink-0">
          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-gradient-to-br from-hot-pink to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-hot-pink/20 animate-pulse">
-                <Activity size={24} />
+            <div className="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-hot-pink to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-hot-pink/20 animate-pulse">
+                <Activity size={20} />
             </div>
             <div>
-                <SonicText text="VES 后台管理系统" />
+                <SonicText text="后台管理" />
                 <div className="flex items-center gap-2 mt-1">
                     <div className="w-1.5 h-1.5 bg-lime-punch rounded-full animate-pulse"></div>
                     <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">Admin Mode • v2.5</p>
@@ -559,8 +559,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       </div>
 
       <div className="flex flex-col md:flex-row h-full overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-full md:w-64 bg-black/20 border-r border-white/5 p-4 flex flex-row md:flex-col gap-2 shrink-0 overflow-x-auto md:overflow-x-hidden custom-scrollbar">
+        {/* Sidebar - Scrollable on Mobile */}
+        <div className="w-full md:w-64 bg-black/20 border-b md:border-b-0 md:border-r border-white/5 p-2 md:p-4 flex flex-row md:flex-col gap-2 shrink-0 overflow-x-auto md:overflow-x-hidden custom-scrollbar no-scrollbar">
             <div className="hidden md:block px-4 py-2 text-xs font-mono text-slate-600 uppercase tracking-widest">系统菜单</div>
             <TabButton id="general" activeTab={activeTab} setActiveTab={setActiveTab} icon={Layout} label="网站概览" colorClass="bg-hot-pink" />
             <TabButton id="music" activeTab={activeTab} setActiveTab={setActiveTab} icon={Music} label="音乐管理" colorClass="bg-electric-cyan" />
@@ -572,12 +572,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-gradient-to-br from-[#0F172A] to-[#0a0f1d] relative custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 md:p-12 bg-gradient-to-br from-[#0F172A] to-[#0a0f1d] relative custom-scrollbar">
+            {/* ... (Existing Content Logic Remains same, just wrapper changed padding) ... */}
             
             {/* --- TAB: GENERAL (Dashboard) --- */}
             {activeTab === 'general' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto">
-                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto pb-20">
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-6">
                         <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/5">
                             <Type size={18} className="text-hot-pink"/>
                             <h3 className="text-hot-pink font-mono text-sm uppercase tracking-widest">首页视觉设置 (Home Visuals)</h3>
@@ -586,18 +587,18 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                         {/* Hero Image Picker */}
                         <div className="mb-8 p-4 bg-black/30 rounded-xl border border-white/5">
                              <label className="text-[10px] text-slate-500 uppercase font-bold mb-3 block">主视觉海报 / 背景图</label>
-                             <div className="flex gap-6 items-center">
-                                 <div className="w-24 h-32 bg-black rounded-lg overflow-hidden border border-white/20 shadow-lg relative group">
+                             <div className="flex gap-4 md:gap-6 items-center flex-col md:flex-row">
+                                 <div className="w-full md:w-24 h-32 bg-black rounded-lg overflow-hidden border border-white/20 shadow-lg relative group">
                                      <img src={data.hero.heroImage} className="w-full h-full object-cover" alt="Hero"/>
                                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs text-white">预览</div>
                                  </div>
-                                 <div className="flex-1">
+                                 <div className="flex-1 w-full">
                                      <UploadProgressWidget active={uploadStatus.active} progress={uploadStatus.progress} speed={uploadStatus.speed} remaining={uploadStatus.remaining} />
                                      {!uploadStatus.active && (
                                          <div className="flex gap-3">
                                              <button 
                                                  onClick={() => { setPickerTarget('hero'); setPickerMode('image'); setPickerProvider('local'); setShowCloudPicker(true); }}
-                                                 className="px-4 py-2 bg-hot-pink hover:bg-white hover:text-midnight text-white rounded-lg font-bold text-xs transition-all flex items-center gap-2"
+                                                 className="flex-1 md:flex-none px-4 py-2 bg-hot-pink hover:bg-white hover:text-midnight text-white rounded-lg font-bold text-xs transition-all flex items-center justify-center gap-2"
                                              >
                                                  <ImageIcon size={16}/> 上传新图片
                                              </button>
@@ -609,6 +610,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                              </div>
                         </div>
 
+                        {/* ... Rest of General Config ... */}
                         <div className="grid gap-6">
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
@@ -653,10 +655,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                 </motion.div>
             )}
 
-            {/* --- TAB: MUSIC --- */}
-            {activeTab === 'music' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto">
-                     
+            {/* Other tabs use same logic, just ensuring container has pb-20 for mobile scroll */}
+             {activeTab === 'music' && (
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto pb-20">
                      {/* Featured Album Editor */}
                     <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-white/10 rounded-2xl p-6 mb-10 relative overflow-hidden">
                         <div className="absolute top-0 right-0 p-3 opacity-10"><Disc size={100} /></div>
@@ -718,15 +719,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                 </div>
 
                                 {newTrack.sourceType === 'native' ? (
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-col md:flex-row gap-2">
                                         <input className="flex-1 bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none text-xs font-mono" value={newTrack.audioUrl} onChange={e => setNewTrack({...newTrack, audioUrl: e.target.value})} placeholder="输入音频URL (mp3/wav)..." />
-                                        <button onClick={() => { setPickerTarget('track'); setPickerMode('music'); setPickerProvider('local'); setShowCloudPicker(true); }} className="bg-electric-cyan/10 text-electric-cyan px-4 rounded-lg border border-electric-cyan/20 flex items-center gap-2 text-xs font-bold"><Cloud size={16} /> 选择文件</button>
+                                        <button onClick={() => { setPickerTarget('track'); setPickerMode('music'); setPickerProvider('local'); setShowCloudPicker(true); }} className="bg-electric-cyan/10 text-electric-cyan px-4 py-2 md:py-0 rounded-lg border border-electric-cyan/20 flex items-center justify-center gap-2 text-xs font-bold"><Cloud size={16} /> 选择文件</button>
                                         <input type="file" accept="audio/*" className="hidden" ref={audioInputRef} onChange={(e) => handleGenericUpload(e, 'track')} />
                                     </div>
                                 ) : (
                                     <div className="flex gap-2">
                                         <input className="flex-1 bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-red-500 outline-none text-xs font-mono" value={newTrack.externalId} onChange={e => setNewTrack({...newTrack, externalId: e.target.value})} placeholder="输入网易云音乐歌曲ID (例如: 123456)" />
-                                        <div className="text-slate-500 text-xs flex items-center px-2">ID通常在歌曲链接中找到</div>
                                     </div>
                                 )}
                             </div>
@@ -750,11 +750,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                     </div>
                 </motion.div>
             )}
-
-            {/* --- TAB: ARTICLES (Translation) --- */}
+            
             {activeTab === 'articles' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto">
-                    <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/5">
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto pb-20">
+                     <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/5">
                         <h3 className="text-lime-punch font-mono text-sm uppercase tracking-widest">文章与动态 (Logs)</h3>
                         <button 
                             onClick={() => setIsAddingArticle(!isAddingArticle)}
@@ -763,7 +762,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                             <Plus size={16} /> {isAddingArticle ? '取消' : '发布新动态'}
                         </button>
                     </div>
-
+                    {/* ... Article Editor Logic (Same as before) ... */}
                     {isAddingArticle && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-8 grid gap-4 shadow-inner">
                              <div className="grid grid-cols-2 gap-4">
@@ -810,7 +809,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                         </motion.div>
                     )}
                     <div className="space-y-3">
-                        {data.articles.map(article => (
+                         {data.articles.map(article => (
                                 <div key={article.id} className="flex items-center justify-between bg-black/20 p-4 rounded-xl border border-white/5 hover:border-lime-punch/50 hover:bg-white/5 transition-all">
                                     <div className="flex items-center gap-4 overflow-hidden">
                                         <img src={article.coverUrl} className="w-12 h-12 rounded-lg object-cover border border-white/10" alt="" />
@@ -828,9 +827,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                 </motion.div>
             )}
 
-            {/* --- TAB: ARTISTS --- */}
             {activeTab === 'artists' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto">
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto pb-20">
                     <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/5"><h3 className="text-purple-500 font-mono text-sm uppercase tracking-widest">艺术家管理 (Roster)</h3><button onClick={() => setIsAddingArtist(!isAddingArtist)} className="bg-purple-500 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase hover:bg-purple-400"><Plus size={16} /></button></div>
                     {isAddingArtist && (
                         <div className="bg-white/5 p-4 rounded-xl mb-6 grid gap-4">
@@ -851,10 +849,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                 </motion.div>
             )}
 
-             {/* --- TAB: CONTACT (Translation) --- */}
-             {activeTab === 'contact' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto">
-                    <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/5">
+            {activeTab === 'contact' && (
+                 <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto pb-20">
+                    {/* Contact Content Same as before */}
+                     <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/5">
                         <Mail size={18} className="text-rose-500"/>
                         <h3 className="text-rose-500 font-mono text-sm uppercase tracking-widest">底部联系信息 (Footer)</h3>
                     </div>
@@ -907,12 +905,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                             />
                         </div>
                     </div>
-                </motion.div>
-             )}
+                 </motion.div>
+            )}
 
-            {/* --- TAB: CLOUD (Enhanced: KV + File Storage) --- */}
-            {activeTab === 'cloud' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-10 max-w-4xl mx-auto">
+             {activeTab === 'cloud' && (
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-10 max-w-4xl mx-auto pb-20">
+                    {/* ... Cloud content same as before ... */}
                     <div className="flex items-center gap-2 border-b border-white/5 pb-4">
                         <Cloud size={18} className="text-orange-500"/>
                         <h3 className="text-orange-500 font-mono text-sm uppercase tracking-widest">云端服务集成 (Cloud Services)</h3>
@@ -1022,8 +1020,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                     )}
                                 </AnimatePresence>
                             </div>
-
-                            {/* OneDrive Toggle */}
+                            {/* ... OneDrive & CF toggles (same structure) ... */}
+                             {/* OneDrive Toggle */}
                             <div className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-blue-500/30 transition-all">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
@@ -1104,24 +1102,26 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
         </div>
       </div>
       
-      {/* Cloud Picker Modal (Simplified) */}
+      {/* Cloud Picker Modal */}
       {showCloudPicker && (
-        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center backdrop-blur-sm">
+        <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center backdrop-blur-sm p-4">
             <div className="bg-[#0F172A] border border-white/10 w-full max-w-2xl h-[600px] flex flex-col rounded-2xl shadow-2xl overflow-hidden">
+                 {/* ... Picker Header ... */}
                  <div className="p-4 border-b border-white/10 flex justify-between items-center bg-surface">
                       <h3 className="font-bold text-white flex items-center gap-2">
-                          <Cloud size={18} className="text-electric-cyan" /> 选择 {pickerMode === 'image' ? '图片' : '音频'}
+                          <Cloud size={18} className="text-electric-cyan" /> 选择文件
                       </h3>
                       <button onClick={() => setShowCloudPicker(false)} className="p-1 hover:bg-white/10 rounded-full"><X size={20} /></button>
                  </div>
 
-                 <div className="flex flex-1 overflow-hidden">
+                 <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
                       {/* Sidebar */}
-                      <div className="w-48 bg-black/20 border-r border-white/10 p-2 flex flex-col gap-1">
-                          <button onClick={() => setPickerProvider('local')} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left ${pickerProvider === 'local' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}><HardDrive size={16} /> 本地设备</button>
-                          <button onClick={() => setPickerProvider('ali')} disabled={!data.integrations.aliDrive?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left ${pickerProvider === 'ali' ? 'bg-orange-500/20 text-orange-500' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><CloudLightning size={16} /> 阿里云 OSS</button>
-                          <button onClick={() => setPickerProvider('one')} disabled={!data.integrations.oneDrive?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left ${pickerProvider === 'one' ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><CloudRain size={16} /> OneDrive</button>
-                          <button onClick={() => setPickerProvider('cf')} disabled={!data.integrations.cloudflare?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left ${pickerProvider === 'cf' ? 'bg-yellow-500/20 text-yellow-500' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><Database size={16} /> Cloudflare R2</button>
+                      <div className="w-full md:w-48 bg-black/20 border-b md:border-b-0 md:border-r border-white/10 p-2 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible shrink-0">
+                          {/* ... Buttons same as before ... */}
+                           <button onClick={() => setPickerProvider('local')} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'local' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}><HardDrive size={16} /> 本地</button>
+                          <button onClick={() => setPickerProvider('ali')} disabled={!data.integrations.aliDrive?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'ali' ? 'bg-orange-500/20 text-orange-500' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><CloudLightning size={16} /> 阿里云</button>
+                          <button onClick={() => setPickerProvider('one')} disabled={!data.integrations.oneDrive?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'one' ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><CloudRain size={16} /> OneDrive</button>
+                          <button onClick={() => setPickerProvider('cf')} disabled={!data.integrations.cloudflare?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'cf' ? 'bg-yellow-500/20 text-yellow-500' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><Database size={16} /> Cloudflare</button>
                       </div>
 
                       {/* Content */}
@@ -1140,11 +1140,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                     setShowCloudPicker(false); 
                                 }}>
                                     <Upload size={40} className="text-slate-500 mb-4" />
-                                    <p className="text-slate-400 text-sm font-bold">点击上传本地 {pickerMode === 'image' ? '图片' : '音频'}</p>
+                                    <p className="text-slate-400 text-sm font-bold">点击上传本地文件</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
-                                    {/* Upload Toolbar for Cloud Providers */}
+                                    {/* Upload Toolbar */}
                                     <div className="flex items-center justify-between bg-white/5 p-3 rounded-lg border border-white/10">
                                         <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
                                             <FolderOpen size={14} />
@@ -1159,7 +1159,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                             disabled={uploadStatus.active}
                                             className="bg-white text-midnight px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 hover:bg-slate-200 disabled:opacity-50"
                                         >
-                                            <ArrowUp size={14} /> 上传文件
+                                            <ArrowUp size={14} /> 上传
                                         </button>
                                     </div>
 
@@ -1171,23 +1171,23 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                         {cloudFiles.filter(f => f.provider === pickerProvider && f.type === (pickerMode === 'music' ? 'audio' : 'image')).length > 0 ? (
                                             cloudFiles.filter(f => f.provider === pickerProvider && f.type === (pickerMode === 'music' ? 'audio' : 'image')).map((file, i) => (
                                                 <div key={i} onClick={() => handleCloudFileSelect(file)} className="group flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/5 hover:border-electric-cyan/50 hover:bg-electric-cyan/10 cursor-pointer transition-all relative overflow-hidden">
-                                                    <div className="flex items-center gap-3 relative z-10">
-                                                        {file.type === 'audio' ? <Music size={18} className="text-slate-500" /> : <ImageIcon size={18} className="text-slate-500" />}
-                                                        <div>
-                                                            <div className="text-sm font-bold text-slate-200 group-hover:text-white flex items-center gap-2">
-                                                                {file.name}
-                                                                {file.isNew && <span className="text-[8px] bg-lime-punch text-midnight px-1.5 py-0.5 rounded font-bold uppercase">New</span>}
+                                                    <div className="flex items-center gap-3 relative z-10 overflow-hidden">
+                                                        {file.type === 'audio' ? <Music size={18} className="text-slate-500 shrink-0" /> : <ImageIcon size={18} className="text-slate-500 shrink-0" />}
+                                                        <div className="min-w-0">
+                                                            <div className="text-sm font-bold text-slate-200 group-hover:text-white flex items-center gap-2 truncate">
+                                                                <span className="truncate">{file.name}</span>
+                                                                {file.isNew && <span className="text-[8px] bg-lime-punch text-midnight px-1.5 py-0.5 rounded font-bold uppercase shrink-0">New</span>}
                                                             </div>
                                                             <div className="text-xs text-slate-500">{file.size}</div>
                                                         </div>
                                                     </div>
-                                                    <CheckCircle2 size={18} className="opacity-0 group-hover:opacity-100 text-electric-cyan relative z-10" />
+                                                    <CheckCircle2 size={18} className="opacity-0 group-hover:opacity-100 text-electric-cyan relative z-10 shrink-0" />
                                                 </div>
                                             ))
                                         ) : (
                                             <div className="text-center py-10 text-slate-500 flex flex-col items-center gap-2">
                                                 <AlertCircle size={24} />
-                                                <span>该云端文件夹为空</span>
+                                                <span>文件夹为空</span>
                                             </div>
                                         )}
                                     </div>

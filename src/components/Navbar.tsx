@@ -51,7 +51,7 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin, toggleAdmin, navItems }) => {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ type: 'spring', stiffness: 100 }}
-        className="fixed top-6 left-0 right-0 z-50 flex justify-center pointer-events-none"
+        className="fixed top-4 left-0 right-0 z-40 flex justify-center pointer-events-none"
       >
         <div className="glass-panel rounded-full px-2 py-2 flex items-center gap-2 pointer-events-auto shadow-lg shadow-hot-pink/10">
           
@@ -83,7 +83,7 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin, toggleAdmin, navItems }) => {
 
           {/* Mobile Menu Toggle */}
           <button 
-            className="md:hidden w-12 h-12 bg-hot-pink text-white rounded-full flex items-center justify-center"
+            className="md:hidden w-12 h-12 bg-hot-pink text-white rounded-full flex items-center justify-center z-50 relative"
             onClick={() => setIsOpen(!isOpen)}
           >
             {isOpen ? <X size={20} /> : <Menu size={20} />}
@@ -95,22 +95,37 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin, toggleAdmin, navItems }) => {
       <AnimatePresence>
         {isOpen && (
           <motion.div 
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed inset-0 bg-midnight/95 backdrop-blur-xl z-40 flex items-center justify-center"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed inset-0 bg-[#0F172A]/98 backdrop-blur-3xl z-30 flex flex-col items-center justify-center"
           >
             <div className="flex flex-col gap-8 text-center">
-              {navItems.map((link) => (
-                <a 
+              {navItems.map((link, index) => (
+                <motion.a 
                   key={link.id}
                   href={`#${link.targetId}`}
                   onClick={() => setIsOpen(false)}
-                  className="font-display text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-hot-pink to-electric-cyan"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 + index * 0.1 }}
+                  className="font-display text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-hot-pink to-electric-cyan hover:scale-110 transition-transform px-6 py-2"
                 >
                   {link.label}
-                </a>
+                </motion.a>
               ))}
+              
+              <div className="w-16 h-1 bg-white/10 rounded-full mx-auto mt-4"></div>
+              
+              <button 
+                  onClick={() => {
+                      toggleAdmin();
+                      setIsOpen(false);
+                  }}
+                  className="text-slate-400 font-mono text-sm uppercase tracking-widest hover:text-white flex items-center gap-2 mx-auto"
+              >
+                  <Settings size={14} /> Admin Access
+              </button>
             </div>
           </motion.div>
         )}

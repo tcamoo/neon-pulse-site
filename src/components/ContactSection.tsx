@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Mail, ArrowRight, Send, MapPin, Smartphone, User, MessageSquare, CheckCircle } from 'lucide-react';
-import { ContactConfig } from '../types';
+import { Mail, Send, MapPin, Smartphone, User, MessageSquare, CheckCircle } from 'lucide-react';
+import type { ContactConfig } from '../types';
 
 interface ContactSectionProps {
     contactData: ContactConfig;

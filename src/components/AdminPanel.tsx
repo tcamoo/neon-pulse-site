@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Track, SiteData, Article, Artist, FeaturedAlbum, CloudConfig } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Cloud, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Menu, Type, Mail, Key, RefreshCw, Save, Disc, Album, Phone, MapPin, FileEdit, ToggleLeft, ToggleRight, CloudLightning, CloudRain, Eye, EyeOff, FolderOpen, ArrowUp } from 'lucide-react';
+import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Cloud, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Menu, Type, Mail, Key, RefreshCw, Save, Disc, Album, Phone, MapPin, FileEdit, ToggleLeft, ToggleRight, CloudLightning, CloudRain, Eye, EyeOff, FolderOpen, ArrowUp, ExternalLink, HelpCircle, QrCode, LogIn, Copy } from 'lucide-react';
 
 interface AdminPanelProps {
   data: SiteData;
@@ -104,13 +104,17 @@ const CloudConfigForm = ({
     onSave, 
     onCancel, 
     label, 
-    color 
+    color,
+    type = 's3',
+    authLink
 }: { 
     config: CloudConfig, 
     onSave: (newConfig: CloudConfig) => void, 
     onCancel: () => void,
     label: string,
-    color: string
+    color: string,
+    type?: 's3' | 'oauth',
+    authLink?: string
 }) => {
     const [localConfig, setLocalConfig] = useState<CloudConfig>(config);
     const [showSecret, setShowSecret] = useState(false);
@@ -123,67 +127,134 @@ const CloudConfigForm = ({
             className="bg-black/40 border border-white/10 rounded-xl p-6 mt-4 space-y-4"
         >
             <div className="flex justify-between items-center border-b border-white/10 pb-2 mb-4">
-                <h5 className={`font-bold text-sm ${color}`}>配置 {label} 令牌</h5>
+                <h5 className={`font-bold text-sm ${color}`}>配置 {label}</h5>
                 <button onClick={onCancel} className="text-slate-500 hover:text-white"><X size={16} /></button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Access Key / ID</label>
-                    <input 
-                        type="text" 
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
-                        value={localConfig.accessKey || ''}
-                        onChange={(e) => setLocalConfig({...localConfig, accessKey: e.target.value})}
-                        placeholder="Ex: LTAI5t8..."
-                    />
-                </div>
-                <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Secret Key</label>
-                    <div className="relative">
+            {/* Form for S3 Compatible Services (Cloudflare R2) */}
+            {type === 's3' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Access Key ID</label>
                         <input 
-                            type={showSecret ? "text" : "password"} 
+                            type="text" 
                             className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
-                            value={localConfig.secretKey || ''}
-                            onChange={(e) => setLocalConfig({...localConfig, secretKey: e.target.value})}
-                            placeholder="••••••••••••"
+                            value={localConfig.accessKey || ''}
+                            onChange={(e) => setLocalConfig({...localConfig, accessKey: e.target.value})}
+                            placeholder="Ex: LTAI5t8..."
                         />
-                        <button 
-                            className="absolute right-2 top-2 text-slate-500 hover:text-white"
-                            onClick={() => setShowSecret(!showSecret)}
-                        >
-                            {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
-                        </button>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Access Key Secret</label>
+                        <div className="relative">
+                            <input 
+                                type={showSecret ? "text" : "password"} 
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
+                                value={localConfig.secretKey || ''}
+                                onChange={(e) => setLocalConfig({...localConfig, secretKey: e.target.value})}
+                                placeholder="••••••••••••"
+                            />
+                            <button 
+                                className="absolute right-2 top-2 text-slate-500 hover:text-white"
+                                onClick={() => setShowSecret(!showSecret)}
+                            >
+                                {showSecret ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
+                        </div>
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Bucket Name (存储桶)</label>
+                        <input 
+                            type="text" 
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
+                            value={localConfig.bucket || ''}
+                            onChange={(e) => setLocalConfig({...localConfig, bucket: e.target.value})}
+                            placeholder="my-music-bucket"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Endpoint (地域节点)</label>
+                        <input 
+                            type="text" 
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
+                            value={localConfig.endpoint || ''}
+                            onChange={(e) => setLocalConfig({...localConfig, endpoint: e.target.value})}
+                            placeholder="xxxx.r2.cloudflarestorage.com"
+                        />
                     </div>
                 </div>
-                <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Bucket Name</label>
-                    <input 
-                        type="text" 
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
-                        value={localConfig.bucket || ''}
-                        onChange={(e) => setLocalConfig({...localConfig, bucket: e.target.value})}
-                        placeholder="my-music-bucket"
-                    />
-                </div>
-                <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-500 uppercase">Endpoint / Region</label>
-                    <input 
-                        type="text" 
-                        className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
-                        value={localConfig.endpoint || ''}
-                        onChange={(e) => setLocalConfig({...localConfig, endpoint: e.target.value})}
-                        placeholder="oss-cn-shanghai.aliyuncs.com"
-                    />
-                </div>
-            </div>
+            )}
 
-            <div className="flex justify-end pt-2">
+            {/* Form for OAuth Services (OneDrive / Aliyun Drive Personal) */}
+            {type === 'oauth' && (
+                <div className="space-y-4">
+                     {/* Quick Auth Guide Box */}
+                    <div className="bg-white/5 p-4 rounded-lg border border-white/10 flex flex-col gap-3">
+                        <div className="flex items-start gap-2">
+                            <div className="p-1.5 bg-electric-cyan/10 rounded-full text-electric-cyan mt-0.5">
+                                <LogIn size={16} />
+                            </div>
+                            <div>
+                                <h4 className="text-xs font-bold text-white">快速获取授权 (Quick Auth)</h4>
+                                <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+                                    点击下方按钮前往官方授权页面，登录账号后复制 <code className="bg-black/30 px-1 rounded text-electric-cyan">Refresh Token</code> 并填入下方。
+                                </p>
+                            </div>
+                        </div>
+                        {authLink && (
+                            <a 
+                                href={authLink} 
+                                target="_blank" 
+                                rel="noreferrer"
+                                className="flex items-center justify-center gap-2 w-full py-2 bg-electric-cyan text-midnight font-bold text-xs rounded-lg hover:bg-white transition-colors"
+                            >
+                                <ExternalLink size={14} /> 前往获取授权 Token
+                            </a>
+                        )}
+                    </div>
+
+                    {/* Form Fields */}
+                    <div className="space-y-4 pt-2">
+                        <div className="space-y-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase">Refresh Token (刷新令牌)</label>
+                            <div className="relative group">
+                                <textarea 
+                                    rows={3}
+                                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white text-xs focus:border-white outline-none font-mono resize-none"
+                                    value={localConfig.refreshToken || ''}
+                                    onChange={(e) => setLocalConfig({...localConfig, refreshToken: e.target.value})}
+                                    placeholder="粘贴 Token..."
+                                />
+                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Copy size={12} className="text-slate-500"/>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {/* Only OneDrive needs explicit Client ID sometimes, typically generic tools provide a default. 
+                            We'll show it as optional/advanced. */}
+                        <div className="space-y-1">
+                             <div className="flex justify-between">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase">Client ID (高级/可选)</label>
+                             </div>
+                             <input 
+                                type="text" 
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-slate-400 text-xs focus:border-white focus:text-white outline-none"
+                                value={localConfig.clientId || ''}
+                                onChange={(e) => setLocalConfig({...localConfig, clientId: e.target.value})}
+                                placeholder="默认留空即可使用公共 Client ID"
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex justify-end pt-4 border-t border-white/5">
                 <button 
                     onClick={() => onSave({...localConfig, enabled: true})}
-                    className={`px-4 py-2 rounded-lg font-bold text-xs text-white flex items-center gap-2 ${color.replace('text-', 'bg-')}`}
+                    className={`px-6 py-2.5 rounded-lg font-bold text-xs text-white flex items-center gap-2 shadow-lg hover:scale-105 transition-all ${color.replace('text-', 'bg-')}`}
                 >
-                    <Save size={14} /> 保存并连接
+                    <Save size={16} /> 保存并连接
                 </button>
             </div>
         </motion.div>
@@ -573,9 +644,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 md:p-12 bg-gradient-to-br from-[#0F172A] to-[#0a0f1d] relative custom-scrollbar">
-            {/* ... (Existing Content Logic Remains same, just wrapper changed padding) ... */}
-            
-            {/* --- TAB: GENERAL (Dashboard) --- */}
+            {/* General Tab */}
             {activeTab === 'general' && (
                 <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto pb-20">
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-6">
@@ -610,7 +679,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                              </div>
                         </div>
 
-                        {/* ... Rest of General Config ... */}
                         <div className="grid gap-6">
                             <div className="grid md:grid-cols-2 gap-6">
                                 <div className="space-y-2">
@@ -632,31 +700,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                             </div>
                         </div>
                     </div>
-
-                     {/* Navigation Config */}
-                     <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
-                        <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/5">
-                            <Menu size={18} className="text-electric-cyan"/>
-                            <h3 className="text-electric-cyan font-mono text-sm uppercase tracking-widest">导航菜单设置 (Menu)</h3>
-                        </div>
-                        <div className="grid gap-4">
-                            {data.navigation.map((nav, index) => (
-                                <div key={nav.id} className="flex items-center gap-4">
-                                    <span className="text-slate-500 text-xs font-mono w-20 uppercase">{nav.targetId}</span>
-                                    <input 
-                                        value={nav.label} 
-                                        onChange={(e) => handleNavChange(index, e.target.value)} 
-                                        className="flex-1 bg-black/30 border border-white/10 rounded-lg p-3 text-white focus:border-electric-cyan outline-none transition-colors"
-                                    />
-                                </div>
-                            ))}
-                        </div>
-                    </div>
                 </motion.div>
             )}
 
-            {/* Other tabs use same logic, just ensuring container has pb-20 for mobile scroll */}
-             {activeTab === 'music' && (
+            {/* Music Tab */}
+            {activeTab === 'music' && (
                 <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto pb-20">
                      {/* Featured Album Editor */}
                     <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-white/10 rounded-2xl p-6 mb-10 relative overflow-hidden">
@@ -706,18 +754,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                     
                     {isAddingTrack && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-8 grid gap-4 relative overflow-hidden">
-                            <div className="grid md:grid-cols-2 gap-4 relative z-10">
+                             <div className="grid md:grid-cols-2 gap-4 relative z-10">
                                 <input placeholder="歌曲标题" className="bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none" value={newTrack.title} onChange={e => setNewTrack({...newTrack, title: e.target.value})} />
                                 <input placeholder="艺术家" className="bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none" value={newTrack.artist} onChange={e => setNewTrack({...newTrack, artist: e.target.value})} />
                             </div>
                             <div className="space-y-2 relative z-10">
                                 <label className="text-[10px] text-slate-400 uppercase font-bold">音频来源</label>
-                                
                                 <div className="flex gap-2 mb-2">
                                     <button onClick={() => setNewTrack({...newTrack, sourceType: 'native'})} className={`px-3 py-1 rounded text-xs font-bold ${newTrack.sourceType === 'native' ? 'bg-electric-cyan text-black' : 'bg-white/10 text-slate-400'}`}>上传文件/外链</button>
                                     <button onClick={() => setNewTrack({...newTrack, sourceType: 'netease'})} className={`px-3 py-1 rounded text-xs font-bold ${newTrack.sourceType === 'netease' ? 'bg-red-500 text-white' : 'bg-white/10 text-slate-400'}`}>网易云音乐 ID</button>
                                 </div>
-
                                 {newTrack.sourceType === 'native' ? (
                                     <div className="flex flex-col md:flex-row gap-2">
                                         <input className="flex-1 bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none text-xs font-mono" value={newTrack.audioUrl} onChange={e => setNewTrack({...newTrack, audioUrl: e.target.value})} placeholder="输入音频URL (mp3/wav)..." />
@@ -733,7 +779,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                             <button onClick={addTrack} disabled={uploadStatus.active} className="relative z-10 bg-electric-cyan/20 text-electric-cyan border border-electric-cyan/50 font-bold py-3 rounded-lg hover:bg-electric-cyan hover:text-midnight transition-all mt-2 disabled:opacity-50">保存歌曲</button>
                         </motion.div>
                     )}
-
+                    
                     <div className="grid gap-3">
                         {filteredTracks.map(track => (
                             <div key={track.id} className="flex items-center justify-between bg-black/20 p-3 rounded-xl border border-white/5 hover:border-electric-cyan/50 transition-all">
@@ -750,8 +796,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                     </div>
                 </motion.div>
             )}
-            
-            {activeTab === 'articles' && (
+
+            {/* Articles Tab */}
+             {activeTab === 'articles' && (
                 <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto pb-20">
                      <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/5">
                         <h3 className="text-lime-punch font-mono text-sm uppercase tracking-widest">文章与动态 (Logs)</h3>
@@ -762,8 +809,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                             <Plus size={16} /> {isAddingArticle ? '取消' : '发布新动态'}
                         </button>
                     </div>
-                    {/* ... Article Editor Logic (Same as before) ... */}
-                    {isAddingArticle && (
+                     {isAddingArticle && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-8 grid gap-4 shadow-inner">
                              <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -792,6 +838,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                      <input type="file" accept="image/*" className="hidden" ref={articleImageInputRef} onChange={(e) => handleGenericUpload(e, 'article')} />
                                  </div>
                              </div>
+                             {/* BGM Selector */}
                              <div className="space-y-2">
                                  <label className="text-[10px] text-slate-400 uppercase font-bold">关联背景音乐</label>
                                  <select 
@@ -826,7 +873,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                     </div>
                 </motion.div>
             )}
-
+            
+            {/* Artists Tab */}
             {activeTab === 'artists' && (
                 <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto pb-20">
                     <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/5"><h3 className="text-purple-500 font-mono text-sm uppercase tracking-widest">艺术家管理 (Roster)</h3><button onClick={() => setIsAddingArtist(!isAddingArtist)} className="bg-purple-500 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase hover:bg-purple-400"><Plus size={16} /></button></div>
@@ -848,11 +896,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                     </div>
                 </motion.div>
             )}
-
+            
+            {/* Contact Tab */}
             {activeTab === 'contact' && (
                  <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto pb-20">
-                    {/* Contact Content Same as before */}
-                     <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/5">
+                    <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/5">
                         <Mail size={18} className="text-rose-500"/>
                         <h3 className="text-rose-500 font-mono text-sm uppercase tracking-widest">底部联系信息 (Footer)</h3>
                     </div>
@@ -876,7 +924,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                 />
                             </div>
                         </div>
-
                         <div className="grid md:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-[10px] text-slate-500 uppercase font-bold flex items-center gap-2"><MapPin size={10}/> 地址第一行</label>
@@ -908,9 +955,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                  </motion.div>
             )}
 
+             {/* --- CLOUD INTEGRATIONS TAB --- */}
              {activeTab === 'cloud' && (
                 <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-10 max-w-4xl mx-auto pb-20">
-                    {/* ... Cloud content same as before ... */}
+                    
                     <div className="flex items-center gap-2 border-b border-white/5 pb-4">
                         <Cloud size={18} className="text-orange-500"/>
                         <h3 className="text-orange-500 font-mono text-sm uppercase tracking-widest">云端服务集成 (Cloud Services)</h3>
@@ -976,14 +1024,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                     {/* Section 2: File Object Storage */}
                     <div>
                         <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                            <HardDrive size={20} className="text-blue-400"/> 文件对象存储 (Object Storage)
+                            <HardDrive size={20} className="text-blue-400"/> 文件对象存储 (File Storage)
                         </h4>
                         <p className="text-sm text-slate-400 mb-6">
-                            配置第三方存储服务以支持大文件（音频/图片）上传。
+                            配置第三方存储服务以支持大文件（音频/图片）上传。支持 OAuth 快速授权。
                         </p>
 
                         <div className="grid gap-4">
-                            {/* AliDrive Toggle */}
+                            {/* Aliyun Drive Personal Toggle */}
                             <div className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-orange-500/30 transition-all">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
@@ -992,10 +1040,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                         </div>
                                         <div>
                                             <h4 className="text-white font-bold flex items-center gap-2">
-                                                阿里云 OSS
+                                                阿里云盘 (个人版)
                                                 {data.integrations.aliDrive?.enabled && <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">已连接</span>}
                                             </h4>
-                                            <p className="text-xs text-slate-500">适用于国内高速访问。</p>
+                                            <p className="text-xs text-slate-500">大容量个人云盘，通过 OAuth 授权挂载。</p>
                                         </div>
                                     </div>
                                     <button 
@@ -1004,23 +1052,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                         ${data.integrations.aliDrive?.enabled ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white' : 'bg-white/10 text-white hover:bg-orange-500'}`}
                                     >
                                         {data.integrations.aliDrive?.enabled ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
-                                        {data.integrations.aliDrive?.enabled ? '断开连接' : '连接服务'}
+                                        {data.integrations.aliDrive?.enabled ? '断开连接' : '授权连接'}
                                     </button>
                                 </div>
                                 
                                 <AnimatePresence>
                                     {editingCloud === 'ali' && !data.integrations.aliDrive?.enabled && (
                                         <CloudConfigForm 
-                                            label="阿里云 OSS" 
+                                            label="阿里云盘 (个人版)" 
                                             color="text-orange-500"
                                             config={data.integrations.aliDrive}
                                             onSave={(config) => handleSaveCloudConfig('ali', config)}
                                             onCancel={() => setEditingCloud(null)}
+                                            type="oauth"
+                                            authLink="https://alist.nn.ci/tool/aliyundrive/request.html"
                                         />
                                     )}
                                 </AnimatePresence>
                             </div>
-                            {/* ... OneDrive & CF toggles (same structure) ... */}
+
                              {/* OneDrive Toggle */}
                             <div className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-blue-500/30 transition-all">
                                 <div className="flex items-center justify-between">
@@ -1033,7 +1083,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                                 Microsoft OneDrive 
                                                 {data.integrations.oneDrive?.enabled && <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">已连接</span>}
                                             </h4>
-                                            <p className="text-xs text-slate-500">Office 365 生态集成。</p>
+                                            <p className="text-xs text-slate-500">Office 365 生态，通过 OAuth 授权挂载。</p>
                                         </div>
                                     </div>
                                     <button 
@@ -1042,7 +1092,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                         ${data.integrations.oneDrive?.enabled ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white' : 'bg-white/10 text-white hover:bg-blue-500'}`}
                                     >
                                         {data.integrations.oneDrive?.enabled ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
-                                        {data.integrations.oneDrive?.enabled ? '断开连接' : '连接服务'}
+                                        {data.integrations.oneDrive?.enabled ? '断开连接' : '授权连接'}
                                     </button>
                                 </div>
                                 <AnimatePresence>
@@ -1053,6 +1103,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                             config={data.integrations.oneDrive}
                                             onSave={(config) => handleSaveCloudConfig('one', config)}
                                             onCancel={() => setEditingCloud(null)}
+                                            type="oauth"
+                                            authLink="https://alist.nn.ci/tool/onedrive/request.html"
                                         />
                                     )}
                                 </AnimatePresence>
@@ -1070,7 +1122,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                                 Cloudflare R2 
                                                 {data.integrations.cloudflare?.enabled && <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">已连接</span>}
                                             </h4>
-                                            <p className="text-xs text-slate-500">零出口费用存储方案。</p>
+                                            <p className="text-xs text-slate-500">S3 兼容，零出口费用存储方案。</p>
                                         </div>
                                     </div>
                                     <button 
@@ -1079,7 +1131,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                         ${data.integrations.cloudflare?.enabled ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white' : 'bg-white/10 text-white hover:bg-yellow-500'}`}
                                     >
                                         {data.integrations.cloudflare?.enabled ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
-                                        {data.integrations.cloudflare?.enabled ? '断开连接' : '连接服务'}
+                                        {data.integrations.cloudflare?.enabled ? '断开连接' : '配置密钥'}
                                     </button>
                                 </div>
                                  <AnimatePresence>
@@ -1090,6 +1142,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                             config={data.integrations.cloudflare}
                                             onSave={(config) => handleSaveCloudConfig('cf', config)}
                                             onCancel={() => setEditingCloud(null)}
+                                            type="s3"
                                         />
                                     )}
                                 </AnimatePresence>
@@ -1102,7 +1155,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
         </div>
       </div>
       
-      {/* Cloud Picker Modal */}
+      {/* Cloud Picker Modal (Same as before) */}
       {showCloudPicker && (
         <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center backdrop-blur-sm p-4">
             <div className="bg-[#0F172A] border border-white/10 w-full max-w-2xl h-[600px] flex flex-col rounded-2xl shadow-2xl overflow-hidden">
@@ -1117,9 +1170,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                  <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
                       {/* Sidebar */}
                       <div className="w-full md:w-48 bg-black/20 border-b md:border-b-0 md:border-r border-white/10 p-2 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible shrink-0">
-                          {/* ... Buttons same as before ... */}
                            <button onClick={() => setPickerProvider('local')} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'local' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}><HardDrive size={16} /> 本地</button>
-                          <button onClick={() => setPickerProvider('ali')} disabled={!data.integrations.aliDrive?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'ali' ? 'bg-orange-500/20 text-orange-500' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><CloudLightning size={16} /> 阿里云</button>
+                          <button onClick={() => setPickerProvider('ali')} disabled={!data.integrations.aliDrive?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'ali' ? 'bg-orange-500/20 text-orange-500' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><CloudLightning size={16} /> 阿里云盘</button>
                           <button onClick={() => setPickerProvider('one')} disabled={!data.integrations.oneDrive?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'one' ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><CloudRain size={16} /> OneDrive</button>
                           <button onClick={() => setPickerProvider('cf')} disabled={!data.integrations.cloudflare?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'cf' ? 'bg-yellow-500/20 text-yellow-500' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><Database size={16} /> Cloudflare</button>
                       </div>
@@ -1148,11 +1200,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                     <div className="flex items-center justify-between bg-white/5 p-3 rounded-lg border border-white/10">
                                         <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
                                             <FolderOpen size={14} />
-                                            <span>Bucket: {
-                                                pickerProvider === 'ali' ? (data.integrations.aliDrive?.bucket || 'Default') :
-                                                pickerProvider === 'one' ? (data.integrations.oneDrive?.bucket || 'MyFiles') :
-                                                (data.integrations.cloudflare?.bucket || 'r2-bucket')
-                                            }</span>
+                                            <span>
+                                                {pickerProvider === 'one' ? 'Root' : 'Bucket: ' + (
+                                                    pickerProvider === 'ali' ? 'Aliyun Drive' :
+                                                    (data.integrations.cloudflare?.bucket || 'r2-bucket')
+                                                )}
+                                            </span>
                                         </div>
                                         <button 
                                             onClick={() => cloudUploadInputRef.current?.click()}

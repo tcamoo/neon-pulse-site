@@ -269,7 +269,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
         }, 500);
       } 
       
-      setUploadStatus(prev => ({ 
+      setUploadStatus(() => ({ 
           active: true, 
           progress: Math.min(progress, 100), 
           speed: `${currentSpeed} MB/s`, 
@@ -310,7 +310,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   const handleGenericUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'hero' | 'album' | 'track' | 'article') => {
       const file = e.target.files?.[0];
       if (file) {
-          simulateUpload((url) => {
+          simulateUpload(() => {
              const finalUrl = URL.createObjectURL(file);
              if (target === 'hero') {
                  updateData(prev => ({ ...prev, hero: { ...prev.hero, heroImage: finalUrl } }));

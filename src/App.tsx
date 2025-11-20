@@ -12,7 +12,7 @@ import Loader from './components/Loader';
 import TrackDetailModal from './components/TrackDetailModal';
 import GlobalPlayer from './components/GlobalPlayer';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SiteData, Track } from './types';
+import type { SiteData, Track } from './types';
 
 // Initial Data Configuration
 const INITIAL_DATA: SiteData = {
@@ -156,7 +156,7 @@ const App: React.FC = () => {
         const onEnded = () => setIsPlaying(false);
         const onPlay = () => setIsPlaying(true);
         const onPause = () => setIsPlaying(false);
-        const onError = (e: Event) => {
+        const onError = () => {
           console.error("Audio error occurred:", audio.error);
           setIsPlaying(false);
         };
@@ -187,8 +187,9 @@ const App: React.FC = () => {
 
     // Initialize Audio Context on first user interaction
     if (!audioContextRef.current) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        audioContextRef.current = new AudioContext();
+        audioContextRef.current = new AudioContextClass();
         analyserRef.current = audioContextRef.current.createAnalyser();
         // Higher FFT size for better resolution in Visualizer (default 256 -> 1024)
         analyserRef.current.fftSize = 1024;

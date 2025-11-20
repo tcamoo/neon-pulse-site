@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { Menu, X, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { NavItem } from '../types';
+import type { NavItem } from '../types';
 
 interface NavbarProps {
   isAdmin: boolean;

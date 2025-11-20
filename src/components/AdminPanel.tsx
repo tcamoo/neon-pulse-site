@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Track, SiteData, Article, Artist, FeaturedAlbum, CloudConfig } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Cloud, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Menu, Type, Mail, Key, RefreshCw, Save, Disc, Album, Phone, MapPin, FileEdit, ToggleLeft, ToggleRight, CloudLightning, CloudRain, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Cloud, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Menu, Type, Mail, Key, RefreshCw, Save, Disc, Album, Phone, MapPin, FileEdit, ToggleLeft, ToggleRight, CloudLightning, CloudRain, Eye, EyeOff, FolderOpen, ArrowUp } from 'lucide-react';
 
 interface AdminPanelProps {
   data: SiteData;
@@ -225,6 +225,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   const [pickerMode, setPickerMode] = useState<'music' | 'image'>('music'); 
   const [pickerTarget, setPickerTarget] = useState<'article' | 'track' | 'hero' | 'album'>('track');
   const [pickerProvider, setPickerProvider] = useState<'ali' | 'one' | 'cf' | 'local'>('local');
+  const cloudUploadInputRef = useRef<HTMLInputElement>(null);
   
   // KV Sync Secret (Separate from File Storage Keys)
   const [kvSyncSecret, setKvSyncSecret] = useState(() => {
@@ -234,8 +235,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   // Which Cloud Config Form is Open
   const [editingCloud, setEditingCloud] = useState<CloudProvider>(null);
 
-  // Simulated Cloud Files
-  const [simulatedCloudFiles] = useState<{name: string, size: string, url: string, provider: 'ali' | 'one' | 'cf', type: 'audio' | 'image'}[]>([
+  // Cloud Files State
+  const [cloudFiles, setCloudFiles] = useState<{name: string, size: string, url: string, provider: 'ali' | 'one' | 'cf', type: 'audio' | 'image', isNew?: boolean}[]>([
       { name: 'VES_Demo_v1.mp3', size: '8.4 MB', url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3', provider: 'ali', type: 'audio' },
       { name: 'Cover_Art_Final.jpg', size: '2.1 MB', url: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=2070&auto=format&fit=crop', provider: 'ali', type: 'image' },
       { name: 'Live_Shanghai_Set.wav', size: '42.1 MB', url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Elipses.mp3', provider: 'ali', type: 'audio' },
@@ -398,21 +399,39 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   const handleCloudFileSelect = (file: {url: string, type: 'audio' | 'image', name: string}) => {
       setShowCloudPicker(false);
       
-      simulateUpload(() => {
-          if (pickerTarget === 'hero') {
-              updateData(prev => ({ ...prev, hero: { ...prev.hero, heroImage: file.url } }));
-          } else if (pickerTarget === 'album') {
-              updateData(prev => ({ ...prev, featuredAlbum: { ...prev.featuredAlbum, coverUrl: file.url } }));
-          } else if (pickerTarget === 'track') {
-              setNewTrack(prev => ({ ...prev, audioUrl: file.url }));
-          } else if (pickerTarget === 'article') {
-              if (pickerMode === 'image') {
-                  setNewArticle(prev => ({ ...prev, coverUrl: file.url }));
-              } else {
-                   // Article Audio logic (if needed later)
-              }
+      // If we are just selecting, we use the url directly
+      if (pickerTarget === 'hero') {
+          updateData(prev => ({ ...prev, hero: { ...prev.hero, heroImage: file.url } }));
+      } else if (pickerTarget === 'album') {
+          updateData(prev => ({ ...prev, featuredAlbum: { ...prev.featuredAlbum, coverUrl: file.url } }));
+      } else if (pickerTarget === 'track') {
+          setNewTrack(prev => ({ ...prev, audioUrl: file.url }));
+      } else if (pickerTarget === 'article') {
+          if (pickerMode === 'image') {
+              setNewArticle(prev => ({ ...prev, coverUrl: file.url }));
+          } else {
+               // Article Audio logic (if needed later)
           }
-      });
+      }
+  };
+
+  const handleCloudUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file && pickerProvider !== 'local') {
+          simulateUpload((url) => {
+              // Convert local blob to a simulated "Cloud URL"
+              const fakeCloudUrl = URL.createObjectURL(file);
+              const newFile = {
+                  name: file.name,
+                  size: (file.size / 1024 / 1024).toFixed(1) + ' MB',
+                  url: fakeCloudUrl,
+                  provider: pickerProvider as 'ali' | 'one' | 'cf',
+                  type: file.type.startsWith('image') ? 'image' : 'audio' as 'image'|'audio',
+                  isNew: true
+              };
+              setCloudFiles(prev => [newFile, ...prev]);
+          });
+      }
   };
 
   const handleGenericUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'hero' | 'album' | 'track' | 'article') => {
@@ -1107,6 +1126,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
 
                       {/* Content */}
                       <div className="flex-1 p-4 overflow-y-auto bg-black/40 custom-scrollbar">
+                            <input type="file" ref={cloudUploadInputRef} onChange={handleCloudUpload} className="hidden" accept={pickerMode === 'image' ? "image/*" : "audio/*"} />
+                            
                             {pickerProvider === 'local' ? (
                                 <div className="flex flex-col items-center justify-center h-full border-2 border-dashed border-white/10 rounded-xl bg-white/5 hover:bg-white/10 transition-colors cursor-pointer" onClick={() => {
                                     if (pickerTarget === 'hero') heroImageInputRef.current?.click();
@@ -1122,26 +1143,54 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                     <p className="text-slate-400 text-sm font-bold">点击上传本地 {pickerMode === 'image' ? '图片' : '音频'}</p>
                                 </div>
                             ) : (
-                                <div className="space-y-2">
-                                    {simulatedCloudFiles.filter(f => f.provider === pickerProvider && f.type === (pickerMode === 'music' ? 'audio' : 'image')).length > 0 ? (
-                                        simulatedCloudFiles.filter(f => f.provider === pickerProvider && f.type === (pickerMode === 'music' ? 'audio' : 'image')).map((file, i) => (
-                                            <div key={i} onClick={() => handleCloudFileSelect(file)} className="group flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/5 hover:border-electric-cyan/50 hover:bg-electric-cyan/10 cursor-pointer transition-all">
-                                                <div className="flex items-center gap-3">
-                                                    {file.type === 'audio' ? <Music size={18} className="text-slate-500" /> : <ImageIcon size={18} className="text-slate-500" />}
-                                                    <div>
-                                                        <div className="text-sm font-bold text-slate-200 group-hover:text-white">{file.name}</div>
-                                                        <div className="text-xs text-slate-500">{file.size}</div>
-                                                    </div>
-                                                </div>
-                                                <CheckCircle2 size={18} className="opacity-0 group-hover:opacity-100 text-electric-cyan" />
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <div className="text-center py-10 text-slate-500 flex flex-col items-center gap-2">
-                                            <AlertCircle size={24} />
-                                            <span>该云端文件夹为空</span>
+                                <div className="space-y-4">
+                                    {/* Upload Toolbar for Cloud Providers */}
+                                    <div className="flex items-center justify-between bg-white/5 p-3 rounded-lg border border-white/10">
+                                        <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
+                                            <FolderOpen size={14} />
+                                            <span>Bucket: {
+                                                pickerProvider === 'ali' ? (data.integrations.aliDrive?.bucket || 'Default') :
+                                                pickerProvider === 'one' ? (data.integrations.oneDrive?.bucket || 'MyFiles') :
+                                                (data.integrations.cloudflare?.bucket || 'r2-bucket')
+                                            }</span>
                                         </div>
-                                    )}
+                                        <button 
+                                            onClick={() => cloudUploadInputRef.current?.click()}
+                                            disabled={uploadStatus.active}
+                                            className="bg-white text-midnight px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 hover:bg-slate-200 disabled:opacity-50"
+                                        >
+                                            <ArrowUp size={14} /> 上传文件
+                                        </button>
+                                    </div>
+
+                                    {/* Upload Progress inside Picker */}
+                                    <UploadProgressWidget active={uploadStatus.active} progress={uploadStatus.progress} speed={uploadStatus.speed} remaining={uploadStatus.remaining} />
+
+                                    {/* File List */}
+                                    <div className="space-y-2">
+                                        {cloudFiles.filter(f => f.provider === pickerProvider && f.type === (pickerMode === 'music' ? 'audio' : 'image')).length > 0 ? (
+                                            cloudFiles.filter(f => f.provider === pickerProvider && f.type === (pickerMode === 'music' ? 'audio' : 'image')).map((file, i) => (
+                                                <div key={i} onClick={() => handleCloudFileSelect(file)} className="group flex items-center justify-between p-3 rounded-lg border border-white/5 bg-white/5 hover:border-electric-cyan/50 hover:bg-electric-cyan/10 cursor-pointer transition-all relative overflow-hidden">
+                                                    <div className="flex items-center gap-3 relative z-10">
+                                                        {file.type === 'audio' ? <Music size={18} className="text-slate-500" /> : <ImageIcon size={18} className="text-slate-500" />}
+                                                        <div>
+                                                            <div className="text-sm font-bold text-slate-200 group-hover:text-white flex items-center gap-2">
+                                                                {file.name}
+                                                                {file.isNew && <span className="text-[8px] bg-lime-punch text-midnight px-1.5 py-0.5 rounded font-bold uppercase">New</span>}
+                                                            </div>
+                                                            <div className="text-xs text-slate-500">{file.size}</div>
+                                                        </div>
+                                                    </div>
+                                                    <CheckCircle2 size={18} className="opacity-0 group-hover:opacity-100 text-electric-cyan relative z-10" />
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="text-center py-10 text-slate-500 flex flex-col items-center gap-2">
+                                                <AlertCircle size={24} />
+                                                <span>该云端文件夹为空</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             )}
                       </div>

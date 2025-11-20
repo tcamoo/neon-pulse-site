@@ -2,7 +2,7 @@
 import React, { useState, useRef } from 'react';
 import type { Track, SiteData, Article, Artist, FeaturedAlbum, CloudConfig } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Save, Cloud, CloudLightning, CloudRain, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Disc, Menu, Type, Mail, Phone, MapPin, FileEdit, Album, ToggleLeft, ToggleRight, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Save, Cloud, CloudLightning, CloudRain, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Disc, Menu, Type, Mail, Phone, MapPin, FileEdit, Album, ToggleLeft, ToggleRight, Eye, EyeOff, Lock, Shield, Globe, Info, Key } from 'lucide-react';
 
 interface AdminPanelProps {
   data: SiteData;
@@ -10,7 +10,7 @@ interface AdminPanelProps {
   onClose: () => void;
 }
 
-type Tab = 'general' | 'music' | 'articles' | 'artists' | 'cloud' | 'contact';
+type Tab = 'general' | 'music' | 'articles' | 'artists' | 'cloud' | 'contact' | 'settings';
 type CloudProvider = 'ali' | 'one' | 'cf' | null;
 
 // Interactive Text Component for Header
@@ -196,7 +196,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   // --- State for Music ---
   const [isAddingTrack, setIsAddingTrack] = useState(false);
   const [newTrack, setNewTrack] = useState<Partial<Track>>({
-    title: '', artist: 'VES', album: 'Neon Dreams', duration: '', plays: 0, coverUrl: '', audioUrl: '', lyrics: ''
+    title: '', artist: 'VES', album: 'Neon Dreams', duration: '', plays: 0, coverUrl: '', audioUrl: '', lyrics: '', sourceType: 'native', externalId: ''
   });
   const [searchTerm] = useState('');
   const audioInputRef = useRef<HTMLInputElement>(null);
@@ -214,6 +214,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
     name: '', role: '', avatarUrl: '', status: 'active'
   });
   
+  // --- State for Password Change ---
+  const [passwordField, setPasswordField] = useState(data.adminPassword || 'admin');
+  const [passwordSaved, setPasswordSaved] = useState(false);
+
   // --- State for Hero Image Upload ---
   const heroImageInputRef = useRef<HTMLInputElement>(null);
   
@@ -307,10 +311,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       });
   }
 
+  const handlePasswordChange = () => {
+      updateData({...data, adminPassword: passwordField});
+      setPasswordSaved(true);
+      setTimeout(() => setPasswordSaved(false), 2000);
+  };
+
   const handleGenericUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'hero' | 'album' | 'track' | 'article') => {
       const file = e.target.files?.[0];
       if (file) {
-          simulateUpload(() => {
+          simulateUpload((url) => {
              const finalUrl = URL.createObjectURL(file);
              if (target === 'hero') {
                  updateData(prev => ({ ...prev, hero: { ...prev.hero, heroImage: finalUrl } }));
@@ -327,6 +337,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   
   const addTrack = () => {
     if (!newTrack.title) return;
+    
+    let finalAudioUrl = newTrack.audioUrl || '';
+    
+    // Netease Conversion Logic
+    if (newTrack.sourceType === 'netease' && newTrack.externalId) {
+        finalAudioUrl = `https://music.163.com/song/media/outer/url?id=${newTrack.externalId}.mp3`;
+    }
+
     const track: Track = {
       id: Date.now().toString(),
       title: newTrack.title || '无题',
@@ -335,12 +353,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       duration: newTrack.duration || '3:00',
       plays: Math.floor(Math.random() * 50000),
       coverUrl: newTrack.coverUrl || getRandomImage(),
-      audioUrl: newTrack.audioUrl || '',
-      lyrics: newTrack.lyrics || ''
+      audioUrl: finalAudioUrl,
+      lyrics: newTrack.lyrics || '',
+      sourceType: newTrack.sourceType,
+      externalId: newTrack.externalId
     };
     updateData({ ...data, tracks: [track, ...data.tracks] }); 
     setIsAddingTrack(false);
-    setNewTrack({ title: '', artist: 'VES', album: 'Neon Dreams', duration: '', plays: 0, coverUrl: '', audioUrl: '', lyrics: '' });
+    setNewTrack({ title: '', artist: 'VES', album: 'Neon Dreams', duration: '', plays: 0, coverUrl: '', audioUrl: '', lyrics: '', sourceType: 'native', externalId: '' });
   };
 
   const deleteTrack = (id: string) => {
@@ -464,49 +484,50 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
 
   return (
     <motion.div 
-      initial={{ opacity: 0, scale: 0.95, y: 20 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.95, y: 20 }}
-      className="bg-[#0a0f1d]/95 backdrop-blur-2xl border border-white/10 rounded-3xl overflow-hidden shadow-2xl shadow-black/80 mb-12 h-[85vh] flex flex-col ring-1 ring-white/5 relative font-sans"
+      initial={{ opacity: 0, y: -50 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -50 }}
+      className="fixed inset-0 bg-[#0F172A] z-50 flex flex-col font-sans"
     >
       {/* Header */}
-      <div className="bg-gradient-to-r from-midnight to-surface p-4 md:p-6 flex justify-between items-center border-b border-white/5 shrink-0">
+      <div className="bg-surface/50 backdrop-blur-md p-4 md:p-6 flex justify-between items-center border-b border-white/5 shrink-0">
          <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-gradient-to-br from-hot-pink to-purple-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-hot-pink/20 animate-pulse">
                 <Activity size={24} />
             </div>
             <div>
-                <SonicText text="VES 后台管理系统" />
+                <SonicText text="VES CENTRAL SYSTEM" />
                 <div className="flex items-center gap-2 mt-1">
                     <div className="w-1.5 h-1.5 bg-lime-punch rounded-full animate-pulse"></div>
-                    <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">System Online • v2.5</p>
+                    <p className="text-[10px] text-slate-400 font-mono uppercase tracking-widest">Admin Mode • v2.5</p>
                 </div>
             </div>
          </div>
          <button onClick={onClose} className="group bg-white/5 hover:bg-red-500/20 hover:text-red-400 text-slate-400 p-2 rounded-full transition-all border border-transparent hover:border-red-500/50">
-            <X size={20} />
+            <X size={24} />
          </button>
       </div>
 
       <div className="flex flex-col md:flex-row h-full overflow-hidden">
         {/* Sidebar */}
         <div className="w-full md:w-64 bg-black/20 border-r border-white/5 p-4 flex flex-row md:flex-col gap-2 shrink-0 overflow-x-auto md:overflow-x-hidden custom-scrollbar">
-            <div className="hidden md:block px-4 py-2 text-xs font-mono text-slate-600 uppercase tracking-widest">管理菜单</div>
-            <TabButton id="general" activeTab={activeTab} setActiveTab={setActiveTab} icon={Layout} label="仪表盘" colorClass="bg-hot-pink" />
-            <TabButton id="music" activeTab={activeTab} setActiveTab={setActiveTab} icon={Music} label="作品库" colorClass="bg-electric-cyan" />
-            <TabButton id="articles" activeTab={activeTab} setActiveTab={setActiveTab} icon={FileText} label="文章动态" colorClass="bg-lime-punch" />
-            <TabButton id="artists" activeTab={activeTab} setActiveTab={setActiveTab} icon={Mic2} label="艺术家" colorClass="bg-purple-500" />
-            <TabButton id="contact" activeTab={activeTab} setActiveTab={setActiveTab} icon={Mail} label="联系信息" colorClass="bg-rose-500" />
+            <div className="hidden md:block px-4 py-2 text-xs font-mono text-slate-600 uppercase tracking-widest">MAIN MENU</div>
+            <TabButton id="general" activeTab={activeTab} setActiveTab={setActiveTab} icon={Layout} label="Dashboard" colorClass="bg-hot-pink" />
+            <TabButton id="music" activeTab={activeTab} setActiveTab={setActiveTab} icon={Music} label="Music Library" colorClass="bg-electric-cyan" />
+            <TabButton id="articles" activeTab={activeTab} setActiveTab={setActiveTab} icon={FileText} label="Transmission Logs" colorClass="bg-lime-punch" />
+            <TabButton id="artists" activeTab={activeTab} setActiveTab={setActiveTab} icon={Mic2} label="Artist Roster" colorClass="bg-purple-500" />
+            <TabButton id="contact" activeTab={activeTab} setActiveTab={setActiveTab} icon={Mail} label="Contact Data" colorClass="bg-rose-500" />
             <div className="hidden md:block h-px bg-white/5 my-2"></div>
-            <TabButton id="cloud" activeTab={activeTab} setActiveTab={setActiveTab} icon={Cloud} label="云端存储" colorClass="bg-orange-500" />
+            <TabButton id="cloud" activeTab={activeTab} setActiveTab={setActiveTab} icon={Cloud} label="Cloud Integrations" colorClass="bg-orange-500" />
+            <TabButton id="settings" activeTab={activeTab} setActiveTab={setActiveTab} icon={Shield} label="System Settings" colorClass="bg-slate-400" />
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-gradient-to-br from-[#0F172A] to-[#0a0f1d] relative custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-gradient-to-br from-[#0F172A] to-[#0a0f1d] relative custom-scrollbar">
             
             {/* --- TAB: GENERAL --- */}
             {activeTab === 'general' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-3xl">
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto">
                     {/* Hero Visuals Config */}
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
                         <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/5">
@@ -586,7 +607,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
 
             {/* --- TAB: MUSIC --- */}
             {activeTab === 'music' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto">
                     
                     {/* Featured Album Editor */}
                     <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-white/10 rounded-2xl p-6 mb-10 relative overflow-hidden">
@@ -637,30 +658,84 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                     </div>
 
                     {isAddingTrack && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-8 grid gap-4 relative overflow-hidden">
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-8 grid gap-4 relative overflow-hidden shadow-xl">
                             <div className="grid md:grid-cols-2 gap-4 relative z-10">
-                                <input placeholder="歌曲标题" className="bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none" value={newTrack.title} onChange={e => setNewTrack({...newTrack, title: e.target.value})} />
-                                <input placeholder="艺术家" className="bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none" value={newTrack.artist} onChange={e => setNewTrack({...newTrack, artist: e.target.value})} />
+                                <div className="space-y-1">
+                                    <label className="text-[10px] text-slate-400 uppercase font-bold">标题</label>
+                                    <input placeholder="歌曲标题" className="w-full bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none" value={newTrack.title} onChange={e => setNewTrack({...newTrack, title: e.target.value})} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] text-slate-400 uppercase font-bold">艺术家</label>
+                                    <input placeholder="艺术家" className="w-full bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none" value={newTrack.artist} onChange={e => setNewTrack({...newTrack, artist: e.target.value})} />
+                                </div>
                             </div>
-                            <div className="space-y-2 relative z-10">
-                                <label className="text-[10px] text-slate-400 uppercase font-bold">音频文件源</label>
-                                <UploadProgressWidget active={uploadStatus.active} progress={uploadStatus.progress} speed={uploadStatus.speed} remaining={uploadStatus.remaining} />
-                                {!uploadStatus.active && (
-                                    <div className="flex gap-2">
-                                        <input className="flex-1 bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none text-xs font-mono" value={newTrack.audioUrl} onChange={e => setNewTrack({...newTrack, audioUrl: e.target.value})} placeholder="输入音频URL..." />
-                                        <button onClick={() => { setPickerTarget('track'); setPickerProvider('local'); setPickerMode('music'); setShowCloudPicker(true); }} className="bg-electric-cyan/10 text-electric-cyan px-4 rounded-lg border border-electric-cyan/20 flex items-center gap-2 text-xs font-bold"><Cloud size={16} /> 从云端/本地选择</button>
-                                        <input type="file" accept="audio/*" className="hidden" ref={audioInputRef} onChange={(e) => handleGenericUpload(e, 'track')} />
+                            
+                            <div className="space-y-2 relative z-10 p-4 bg-black/30 rounded-xl border border-white/5 mt-2">
+                                <label className="block text-xs font-bold text-slate-500 uppercase mb-2">音频来源方式</label>
+                                <div className="flex bg-black/40 p-1 rounded-lg border border-white/10 mb-4">
+                                    <button 
+                                        onClick={() => setNewTrack({...newTrack, sourceType: 'native'})}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-2 ${newTrack.sourceType !== 'netease' ? 'bg-electric-cyan text-midnight shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        <HardDrive size={14}/> 本地上传 / 直链
+                                    </button>
+                                    <button 
+                                        onClick={() => setNewTrack({...newTrack, sourceType: 'netease'})}
+                                        className={`flex-1 py-2 text-xs font-bold rounded-md transition-all flex items-center justify-center gap-2 ${newTrack.sourceType === 'netease' ? 'bg-red-500 text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
+                                    >
+                                        <Globe size={14}/> 网易云音乐 ID
+                                    </button>
+                                </div>
+
+                                {newTrack.sourceType === 'netease' ? (
+                                     <div className="space-y-2 animate-in fade-in slide-in-from-top-2 p-2">
+                                        <label className="text-[10px] text-red-400 uppercase font-bold">网易云歌曲 ID (Song ID)</label>
+                                        <div className="flex gap-2">
+                                            <div className="bg-red-500/10 border border-red-500/30 p-3 rounded-l-lg flex items-center justify-center">
+                                                <span className="text-red-500 font-bold text-xs">ID</span>
+                                            </div>
+                                            <input 
+                                                className="flex-1 bg-black/50 p-3 rounded-r-lg border border-white/10 text-white focus:border-red-500 outline-none text-sm font-mono" 
+                                                value={newTrack.externalId || ''} 
+                                                onChange={e => setNewTrack({...newTrack, externalId: e.target.value})} 
+                                                placeholder="例如: 186016 (可在网易云链接中找到)" 
+                                            />
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1">输入 ID 后，系统将自动生成播放链接。无需手动查找 MP3 地址。</p>
+                                     </div>
+                                ) : (
+                                    <div className="space-y-2 p-2">
+                                        <UploadProgressWidget active={uploadStatus.active} progress={uploadStatus.progress} speed={uploadStatus.speed} remaining={uploadStatus.remaining} />
+                                        {!uploadStatus.active && (
+                                            <div className="flex gap-2">
+                                                <input className="flex-1 bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none text-xs font-mono" value={newTrack.audioUrl} onChange={e => setNewTrack({...newTrack, audioUrl: e.target.value})} placeholder="输入音频URL..." />
+                                                <button onClick={() => { setPickerTarget('track'); setPickerProvider('local'); setPickerMode('music'); setShowCloudPicker(true); }} className="bg-electric-cyan/10 text-electric-cyan px-4 rounded-lg border border-electric-cyan/20 flex items-center gap-2 text-xs font-bold"><Cloud size={16} /> 选择文件</button>
+                                                <input type="file" accept="audio/*" className="hidden" ref={audioInputRef} onChange={(e) => handleGenericUpload(e, 'track')} />
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
-                            <button onClick={addTrack} disabled={uploadStatus.active} className="relative z-10 bg-electric-cyan/20 text-electric-cyan border border-electric-cyan/50 font-bold py-3 rounded-lg hover:bg-electric-cyan hover:text-midnight transition-all mt-2 disabled:opacity-50">保存歌曲</button>
+                            
+                            <button onClick={addTrack} disabled={uploadStatus.active} className="relative z-10 bg-electric-cyan/20 text-electric-cyan border border-electric-cyan/50 font-bold py-3 rounded-lg hover:bg-electric-cyan hover:text-midnight transition-all mt-2 disabled:opacity-50">
+                                <Save size={16} className="inline mr-2"/> 保存并发布歌曲
+                            </button>
                         </motion.div>
                     )}
 
                     <div className="grid gap-3">
                         {filteredTracks.map(track => (
                             <div key={track.id} className="flex items-center justify-between bg-black/20 p-3 rounded-xl border border-white/5 hover:border-electric-cyan/50 transition-all">
-                                <div className="flex items-center gap-4"><img src={track.coverUrl} className="w-10 h-10 rounded object-cover" alt="" /><div className="font-bold text-white truncate">{track.title}</div></div>
+                                <div className="flex items-center gap-4">
+                                    <img src={track.coverUrl} className="w-10 h-10 rounded object-cover" alt="" />
+                                    <div className="min-w-0">
+                                        <div className="font-bold text-white truncate">{track.title}</div>
+                                        <div className="text-xs text-slate-500 flex items-center gap-2">
+                                            {track.artist}
+                                            {track.sourceType === 'netease' && <span className="text-red-500 bg-red-500/10 px-1.5 rounded text-[10px] border border-red-500/20">网易云音乐</span>}
+                                        </div>
+                                    </div>
+                                </div>
                                 <button onClick={() => deleteTrack(track.id)} className="text-slate-600 hover:text-red-500 p-2"><Trash2 size={18} /></button>
                             </div>
                         ))}
@@ -670,7 +745,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
 
             {/* --- TAB: ARTICLES --- */}
              {activeTab === 'articles' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto">
                     <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/5">
                         <h3 className="text-lime-punch font-mono text-sm uppercase tracking-widest">文章动态管理 (News & Articles)</h3>
                         <button 
@@ -770,7 +845,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
 
             {/* --- TAB: ARTISTS --- */}
             {activeTab === 'artists' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }}>
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto">
                     <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/5"><h3 className="text-purple-500 font-mono text-sm uppercase tracking-widest">艺术家管理 (Artist Roster)</h3><button onClick={() => setIsAddingArtist(!isAddingArtist)} className="bg-purple-500 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase hover:bg-purple-400"><Plus size={16} /></button></div>
                     {isAddingArtist && (
                         <div className="bg-white/5 p-4 rounded-xl mb-6 grid gap-4">
@@ -791,9 +866,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                 </motion.div>
             )}
 
-            {/* --- TAB: CLOUD (Enhanced with Config Forms) --- */}
+            {/* --- TAB: CLOUD --- */}
             {activeTab === 'cloud' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-3xl">
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto">
                     <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/5">
                         <Cloud size={18} className="text-orange-500"/>
                         <h3 className="text-orange-500 font-mono text-sm uppercase tracking-widest">云服务集成配置</h3>
@@ -921,7 +996,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
 
              {/* --- TAB: CONTACT --- */}
             {activeTab === 'contact' && (
-                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-3xl">
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto">
                     <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/5">
                         <Mail size={18} className="text-rose-500"/>
                         <h3 className="text-rose-500 font-mono text-sm uppercase tracking-widest">底部联系信息管理</h3>
@@ -979,6 +1054,72 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                 </motion.div>
             )}
 
+            {/* --- TAB: SETTINGS --- */}
+            {activeTab === 'settings' && (
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto">
+                    <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/5">
+                        <Shield size={18} className="text-slate-400"/>
+                        <h3 className="text-slate-400 font-mono text-sm uppercase tracking-widest">系统安全设置 (Security)</h3>
+                    </div>
+
+                    {/* Cloudflare Env Var Instruction */}
+                    <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl mb-6 relative overflow-hidden">
+                         <div className="absolute -right-4 -top-4 text-blue-500/10"><Key size={80} /></div>
+                         <h4 className="text-blue-400 font-bold text-sm mb-3 flex items-center gap-2 relative z-10"><Info size={16}/> Cloudflare / Vercel 环境变量配置</h4>
+                         <p className="text-xs text-slate-300 leading-relaxed relative z-10">
+                           如需设置永久有效的管理员密码（推荐生产环境使用），请在您的部署平台（如 Cloudflare Pages）后台添加以下环境变量：
+                         </p>
+                         <div className="mt-3 flex items-center gap-3 relative z-10">
+                            <code className="bg-black/30 border border-white/10 px-3 py-1.5 rounded text-electric-cyan font-mono text-xs select-all">VITE_ADMIN_PASSWORD</code>
+                            <span className="text-xs text-slate-500">= 您的强密码</span>
+                         </div>
+                         <div className="mt-4 pt-3 border-t border-blue-500/20 text-xs flex items-center gap-2 relative z-10">
+                            <span className="text-slate-400">当前密码源状态:</span>
+                            {import.meta.env.VITE_ADMIN_PASSWORD ? 
+                                <span className="text-green-400 flex items-center gap-1"><CheckCircle2 size={12}/> 已检测到环境变量</span> : 
+                                <span className="text-orange-400 flex items-center gap-1"><AlertCircle size={12}/> 使用默认/本地存储 (Session)</span>
+                            }
+                         </div>
+                    </div>
+
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6">
+                        <div className="flex gap-6 items-start">
+                            <div className="w-16 h-16 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center justify-center text-red-500 shrink-0">
+                                <Lock size={32} />
+                            </div>
+                            <div className="flex-1 space-y-4">
+                                <div>
+                                    <h4 className="text-xl font-bold text-white mb-2">临时修改访问密码</h4>
+                                    <p className="text-sm text-slate-400 leading-relaxed">
+                                        修改进入此后台管理系统所需的密码。<br/>
+                                        <span className="text-orange-400 text-xs">注意：在此修改的密码仅对当前浏览器会话有效（刷新后重置）。如需永久修改，请参考上方的环境变量配置说明。</span>
+                                    </p>
+                                </div>
+                                
+                                <div className="space-y-2 max-w-md">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase">新密码 (当前会话)</label>
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="text" 
+                                            value={passwordField}
+                                            onChange={(e) => setPasswordField(e.target.value)}
+                                            className="flex-1 bg-black/30 border border-white/10 rounded-lg p-3 text-white focus:border-white outline-none font-mono tracking-widest"
+                                        />
+                                        <button 
+                                            onClick={handlePasswordChange}
+                                            className="bg-white text-midnight font-bold px-6 rounded-lg hover:bg-slate-200 transition-colors flex items-center gap-2 whitespace-nowrap"
+                                        >
+                                            {passwordSaved ? <CheckCircle2 size={18}/> : <Save size={18}/>}
+                                            {passwordSaved ? '已更新' : '保存更改'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+            )}
+
         </div>
       </div>
 
@@ -989,7 +1130,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="absolute inset-0 z-50 bg-black/90 backdrop-blur-sm flex items-center justify-center p-6"
+                  className="absolute inset-0 z-[60] bg-black/90 backdrop-blur-sm flex items-center justify-center p-6"
               >
                   <motion.div 
                       initial={{ scale: 0.9 }}

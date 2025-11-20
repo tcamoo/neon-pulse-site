@@ -11,7 +11,7 @@ import AdminPanel from './components/AdminPanel';
 import Loader from './components/Loader';
 import TrackDetailModal from './components/TrackDetailModal';
 import GlobalPlayer from './components/GlobalPlayer';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import type { SiteData, Track } from './types';
 
 // Initial Data Configuration
@@ -189,6 +189,7 @@ const App: React.FC = () => {
     if (!audioContextRef.current) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+        // Fix: use the polyfilled class
         audioContextRef.current = new AudioContextClass();
         analyserRef.current = audioContextRef.current.createAnalyser();
         // Higher FFT size for better resolution in Visualizer (default 256 -> 1024)

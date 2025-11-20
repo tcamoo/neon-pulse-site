@@ -2,7 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { X, Play, Pause, Disc, Clock, Music, Share2, Heart } from 'lucide-react';
-import { Track } from '../types';
+import type { Track } from '../types';
 import ProgressBar from './ProgressBar';
 
 interface TrackDetailModalProps {
@@ -18,6 +18,10 @@ interface TrackDetailModalProps {
 const TrackDetailModal: React.FC<TrackDetailModalProps> = ({ 
     track, isPlaying, currentTime = 0, duration = 0, onClose, onPlayToggle, onSeek 
 }) => {
+  const handleContainerClick = (e: React.MouseEvent<HTMLDivElement>) => {
+      e.stopPropagation();
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -37,7 +41,7 @@ const TrackDetailModal: React.FC<TrackDetailModalProps> = ({
         exit={{ scale: 0.9, y: 50 }}
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
         className="relative w-full max-w-6xl h-[90vh] bg-[#0F172A] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col md:flex-row"
-        onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
+        onClick={handleContainerClick}
       >
         {/* Close Button */}
         <button 

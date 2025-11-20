@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export interface Track {
@@ -10,6 +11,9 @@ export interface Track {
   plays: number;
   audioUrl?: string;
   lyrics?: string;
+  // New fields for external sources
+  sourceType?: 'native' | 'netease';
+  externalId?: string;
 }
 
 export interface Article {
@@ -76,6 +80,9 @@ export interface ContactConfig {
 }
 
 export interface SiteData {
+  // Security
+  adminPassword?: string; 
+  
   navigation: NavItem[];
   hero: HeroData;
   featuredAlbum: FeaturedAlbum;

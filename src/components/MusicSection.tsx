@@ -171,7 +171,7 @@ const MusicSection: React.FC<MusicSectionProps> = ({ tracks, featuredAlbum, curr
                            <div className="font-mono text-sm text-slate-500">{track.duration}</div>
                            
                            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button className="p-2 rounded-full hover:bg-white/20 text-white transition-colors" onClick={(e: React.MouseEvent) => {e.stopPropagation(); onViewDetails(track)}}>
+                                <button className="p-2 rounded-full hover:bg-white/20 text-white transition-colors" onClick={(e: React.MouseEvent<HTMLButtonElement>) => {e.stopPropagation(); onViewDetails(track)}}>
                                     <Info size={18} />
                                 </button>
                                 <button className="p-2 rounded-full hover:text-hot-pink text-slate-400 transition-colors">

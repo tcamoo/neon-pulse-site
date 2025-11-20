@@ -329,23 +329,30 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Determine if the system cursor should be shown (when in admin mode or password modal)
+  const isSystemCursor = isAdminOpen || showPasswordModal;
+
   return (
-    <div className="bg-void min-h-screen text-gray-100 selection:bg-hot-pink selection:text-white cursor-none font-sans relative pb-20">
+    <div className={`bg-void min-h-screen text-gray-100 selection:bg-hot-pink selection:text-white font-sans relative pb-20 ${isSystemCursor ? 'cursor-auto' : 'cursor-none'}`}>
       
       {/* Grain Overlay */}
       <div className="bg-grain pointer-events-none"></div>
 
-      {/* Custom Cursor */}
-      <motion.div
-        className="fixed top-0 left-0 w-4 h-4 bg-hot-pink rounded-full pointer-events-none z-[100] mix-blend-difference"
-        animate={{ x: cursorPosition.x - 8, y: cursorPosition.y - 8 }}
-        transition={{ type: "tween", ease: "linear", duration: 0 }}
-      />
-      <motion.div
-        className="fixed top-0 left-0 w-12 h-12 border border-electric-cyan/50 rounded-full pointer-events-none z-[100]"
-        animate={{ x: cursorPosition.x - 24, y: cursorPosition.y - 24 }}
-        transition={{ type: "spring", mass: 0.2, stiffness: 100 }}
-      />
+      {/* Custom Cursor - Only show when NOT in admin mode */}
+      {!isSystemCursor && (
+        <>
+          <motion.div
+            className="fixed top-0 left-0 w-4 h-4 bg-hot-pink rounded-full pointer-events-none z-[100] mix-blend-difference"
+            animate={{ x: cursorPosition.x - 8, y: cursorPosition.y - 8 }}
+            transition={{ type: "tween", ease: "linear", duration: 0 }}
+          />
+          <motion.div
+            className="fixed top-0 left-0 w-12 h-12 border border-electric-cyan/50 rounded-full pointer-events-none z-[100]"
+            animate={{ x: cursorPosition.x - 24, y: cursorPosition.y - 24 }}
+            transition={{ type: "spring", mass: 0.2, stiffness: 100 }}
+          />
+        </>
+      )}
 
       <AnimatePresence mode="wait">
         {isLoading && <Loader />}
@@ -358,7 +365,7 @@ const App: React.FC = () => {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="fixed inset-0 z-[9999] bg-midnight/95 backdrop-blur-xl flex items-center justify-center p-4"
+                  className="fixed inset-0 z-[9999] bg-midnight/95 backdrop-blur-xl flex items-center justify-center p-4 cursor-auto"
               >
                   <motion.div 
                     initial={{ scale: 0.9, y: 20 }}
@@ -488,7 +495,7 @@ const App: React.FC = () => {
       {/* Admin Panel Overlay - Fullscreen Fixed */}
       <AnimatePresence>
         {isAdminOpen && (
-            <div className="fixed inset-0 z-[60]">
+            <div className="fixed inset-0 z-[60] cursor-auto">
                 <AdminPanel 
                     data={siteData}
                     updateData={setSiteData}

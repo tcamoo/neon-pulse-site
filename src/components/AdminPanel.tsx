@@ -1,8 +1,8 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Track, SiteData, Article, Artist, NavItem, FeaturedAlbum, CloudConfig } from '../types';
+import React, { useState, useRef } from 'react';
+import type { Track, SiteData, Article, Artist, FeaturedAlbum, CloudConfig } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Save, RefreshCw, Search, Cloud, CloudLightning, CloudRain, CheckCircle2, AlertCircle, HardDrive, Share2, Database, Settings, Key, Image as ImageIcon, Disc, Menu, Type, Mail, Phone, MapPin, FileEdit, Album, ToggleLeft, ToggleRight, Eye, EyeOff } from 'lucide-react';
+import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Save, Cloud, CloudLightning, CloudRain, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Disc, Menu, Type, Mail, Phone, MapPin, FileEdit, Album, ToggleLeft, ToggleRight, Eye, EyeOff } from 'lucide-react';
 
 interface AdminPanelProps {
   data: SiteData;
@@ -36,6 +36,7 @@ const SonicText = ({ text }: { text: string }) => {
     );
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const TabButton = ({ 
   id, 
   activeTab, 
@@ -197,7 +198,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   const [newTrack, setNewTrack] = useState<Partial<Track>>({
     title: '', artist: 'VES', album: 'Neon Dreams', duration: '', plays: 0, coverUrl: '', audioUrl: '', lyrics: ''
   });
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchTerm] = useState('');
   const audioInputRef = useRef<HTMLInputElement>(null);
 
   // --- State for Articles (Articles) ---
@@ -226,7 +227,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   const [pickerProvider, setPickerProvider] = useState<'ali' | 'one' | 'cf' | 'local'>('local');
   const [pickerTarget, setPickerTarget] = useState<'article' | 'track' | 'hero' | 'album'>('track');
   
-  const [simulatedCloudFiles, setSimulatedCloudFiles] = useState<{name: string, size: string, url: string, provider: 'ali' | 'one' | 'cf', type: 'audio' | 'image'}[]>([
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [simulatedCloudFiles] = useState<{name: string, size: string, url: string, provider: 'ali' | 'one' | 'cf', type: 'audio' | 'image'}[]>([
       { name: 'VES_Demo_v1.mp3', size: '8.4 MB', url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3', provider: 'ali', type: 'audio' },
       { name: 'Cover_Art_Final.jpg', size: '2.1 MB', url: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=2070&auto=format&fit=crop', provider: 'ali', type: 'image' },
       { name: 'Live_Shanghai_Set.wav', size: '42.1 MB', url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Elipses.mp3', provider: 'ali', type: 'audio' },

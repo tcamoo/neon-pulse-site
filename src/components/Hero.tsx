@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { PlayCircle, Disc } from 'lucide-react';
-import { HeroData } from '../types';
+import type { HeroData } from '../types';
 
 interface HeroProps {
   data: HeroData;

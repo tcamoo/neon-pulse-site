@@ -86,7 +86,7 @@ const GlitchDecodeText = ({
 
 const Hero: React.FC<HeroProps> = ({ data }) => {
   return (
-    <section className="min-h-screen w-full flex items-center justify-center relative overflow-hidden pt-32 pb-20">
+    <section className="min-h-screen w-full flex items-center justify-center relative overflow-hidden pt-24 pb-20">
       
       {/* Background Decorative Elements */}
       <div className="absolute top-20 right-[-10%] w-[40vw] h-[40vw] bg-gradient-to-br from-hot-pink/20 to-purple-500/20 rounded-full blur-3xl animate-float" />
@@ -109,7 +109,7 @@ const Hero: React.FC<HeroProps> = ({ data }) => {
                 <span className="h-[1px] w-20 bg-gradient-to-r from-white/50 to-transparent"></span>
              </div>
              
-             <div className="text-7xl md:text-9xl leading-[0.9] mb-8 cursor-default select-none flex flex-col items-start">
+             <div className="text-5xl md:text-7xl lg:text-9xl leading-[0.9] mb-8 cursor-default select-none flex flex-col items-start">
                 {/* Line 1: White text, changes to stroke on hover */}
                 <GlitchDecodeText 
                     text={data.titleLine1} 
@@ -129,7 +129,7 @@ const Hero: React.FC<HeroProps> = ({ data }) => {
                {data.subtitle}
              </p>
 
-             <div className="flex flex-wrap gap-6">
+             <div className="flex flex-wrap gap-4 md:gap-6">
                 <button className="group relative px-8 py-4 bg-white text-midnight font-bold rounded-full overflow-hidden transition-all hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.3)]">
                     <div className="absolute inset-0 bg-hot-pink transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300"></div>
                     <span className="relative group-hover:text-white flex items-center gap-2">
@@ -144,7 +144,7 @@ const Hero: React.FC<HeroProps> = ({ data }) => {
         </div>
 
         {/* Right Visual - Arch Mask */}
-        <div className="lg:col-span-5 relative flex justify-center lg:justify-end">
+        <div className="lg:col-span-5 relative flex justify-center lg:justify-end hidden md:flex">
             <motion.div
                initial={{ opacity: 0, scale: 0.8, rotate: -5 }}
                animate={{ opacity: 1, scale: 1, rotate: 0 }}
@@ -188,7 +188,7 @@ const Hero: React.FC<HeroProps> = ({ data }) => {
       {/* Marquee Text Bottom */}
       <div className="absolute bottom-0 left-0 w-full overflow-hidden py-4 bg-hot-pink text-midnight transform rotate-1 origin-bottom-left border-t-2 border-white">
          <motion.div 
-            className="whitespace-nowrap font-display font-black text-4xl uppercase flex gap-8"
+            className="whitespace-nowrap font-display font-black text-3xl md:text-4xl uppercase flex gap-8"
             animate={{ x: ["0%", "-50%"] }}
             transition={{ repeat: Infinity, ease: "linear", duration: 20 }}
          >

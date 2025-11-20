@@ -1,7 +1,6 @@
 
 export async function onRequest(context) {
   const { request, env } = context;
-  const url = new URL(request.url);
 
   // CORS Headers to allow local development or cross-origin if needed
   const corsHeaders = {
@@ -14,43 +13,44 @@ export async function onRequest(context) {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Security: Check for a secret key header
-  // You must set an environment variable named 'SYNC_SECRET' in Cloudflare Pages settings
-  const authKey = request.headers.get("x-auth-key");
-  const expectedKey = env.SYNC_SECRET;
-
-  if (!expectedKey || authKey !== expectedKey) {
-    return new Response(JSON.stringify({ error: "Unauthorized: Invalid or missing Key" }), {
-      status: 403,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
-  // KV Binding: You must bind a KV Namespace to the variable 'SITE_DATA_KV' in Cloudflare Pages settings
+  // KV Binding Check
   const KV = env.SITE_DATA_KV;
   if (!KV) {
-    return new Response(JSON.stringify({ error: "Server Error: KV not bound" }), {
+    return new Response(JSON.stringify({ error: "Server Error: KV not bound. Please bind SITE_DATA_KV in Cloudflare Pages settings." }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 
   try {
-    // GET: Retrieve data
+    // GET: Retrieve data (PUBLIC READ ACCESS)
+    // We allow anyone to read the site data so the website content updates for all visitors.
     if (request.method === "GET") {
       const data = await KV.get("ves_site_data");
+      // If no data exists in KV, return null (frontend will use defaults)
       return new Response(data || "null", {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // PUT: Save data
+    // PUT: Save data (PROTECTED WRITE ACCESS)
     if (request.method === "PUT") {
-      const body = await request.text();
-      await KV.put("ves_site_data", body);
-      return new Response(JSON.stringify({ success: true }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+        // Security: Check for a secret key header for WRITE operations
+        const authKey = request.headers.get("x-auth-key");
+        const expectedKey = env.SYNC_SECRET;
+
+        if (!expectedKey || authKey !== expectedKey) {
+            return new Response(JSON.stringify({ error: "Unauthorized: Invalid or missing Sync Secret Key" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+        }
+
+        const body = await request.text();
+        await KV.put("ves_site_data", body);
+        return new Response(JSON.stringify({ success: true }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
     }
 
     return new Response("Method not allowed", { status: 405, headers: corsHeaders });

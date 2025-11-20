@@ -146,52 +146,10 @@ const App: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
 
   // Custom cursor
   const [cursorPosition, setCursorPosition] = useState({ x: 0, y: 0 });
-  
-  // Initialize Audio & Events
-  useEffect(() => {
-    if (!audioRef.current) {
-        audioRef.current = new Audio();
-        // Use anonymous by default, but this might need to change for Netease
-        audioRef.current.crossOrigin = "anonymous";
-        
-        // Event Listeners
-        const audio = audioRef.current;
-        
-        const onTimeUpdate = () => setCurrentTime(audio.currentTime);
-        const onLoadedMetadata = () => setDuration(audio.duration);
-        const onEnded = () => setIsPlaying(false);
-        const onPlay = () => setIsPlaying(true);
-        const onPause = () => setIsPlaying(false);
-        const onError = () => {
-          console.error("Audio error occurred:", audio.error);
-          setIsPlaying(false);
-        };
-
-        audio.addEventListener('timeupdate', onTimeUpdate);
-        audio.addEventListener('loadedmetadata', onLoadedMetadata);
-        audio.addEventListener('ended', onEnded);
-        audio.addEventListener('play', onPlay);
-        audio.addEventListener('pause', onPause);
-        audio.addEventListener('error', onError);
-
-        return () => {
-            audio.removeEventListener('timeupdate', onTimeUpdate);
-            audio.removeEventListener('loadedmetadata', onLoadedMetadata);
-            audio.removeEventListener('ended', onEnded);
-            audio.removeEventListener('play', onPlay);
-            audio.removeEventListener('pause', onPause);
-            audio.removeEventListener('error', onError);
-            if (audioContextRef.current) {
-                audioContextRef.current.close();
-            }
-        };
-    }
-  }, []);
 
   const handleAdminToggle = () => {
       if (isAuthenticated) {
@@ -218,85 +176,101 @@ const App: React.FC = () => {
       }
   };
 
+  // --- NEW: Robust Audio Handling ---
   const handlePlayTrack = async (track: Track) => {
-    if (!audioRef.current) return;
-
-    // Initialize Audio Context on first user interaction
-    if (!audioContextRef.current) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        audioContextRef.current = new AudioContextClass();
-        analyserRef.current = audioContextRef.current.createAnalyser();
-        // Higher FFT size for better resolution in Visualizer (default 256 -> 1024)
-        analyserRef.current.fftSize = 1024;
-        
-        // Create source only once
-        if (!sourceRef.current) {
-            sourceRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
-            sourceRef.current.connect(analyserRef.current);
-            analyserRef.current.connect(audioContextRef.current.destination);
-        }
-        
-        setAnalyser(analyserRef.current);
-    }
-
-    // Ensure context is running
-    if (audioContextRef.current.state === 'suspended') {
-        await audioContextRef.current.resume();
-    }
-
-    if (currentTrackId === track.id) {
-        // Toggle Play/Pause
+    // 1. Toggle if same track
+    if (currentTrackId === track.id && audioRef.current) {
         if (isPlaying) {
             audioRef.current.pause();
         } else {
-            const playPromise = audioRef.current.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(e => {
-                    console.error("Playback failed during toggle:", e);
-                });
+            audioRef.current.play().catch(e => console.error("Playback toggle failed", e));
+        }
+        return;
+    }
+
+    // 2. Cleanup previous audio
+    if (audioRef.current) {
+        audioRef.current.pause();
+        // Remove old listeners to prevent memory leaks / unwanted state updates
+        audioRef.current.src = "";
+        audioRef.current.load();
+    }
+
+    // 3. Setup New Audio Element
+    // We recreate the Audio element to ensure a clean state for Web Audio / CORS
+    const newAudio = new Audio();
+    
+    // Netease and some external streams block CORS (Cross-Origin Resource Sharing) headers.
+    // If we attach them to Web Audio API (analyser), the browser SecurityPolicy will silent them.
+    // Solution: If it's Netease/Restricted, DO NOT add crossOrigin="anonymous" and DO NOT connect to Web Audio.
+    const isRestricted = track.sourceType === 'netease' || (track.audioUrl && track.audioUrl.includes('music.163.com'));
+
+    if (!isRestricted) {
+        newAudio.crossOrigin = "anonymous";
+    } else {
+        newAudio.removeAttribute('crossOrigin');
+    }
+    
+    newAudio.src = track.audioUrl || '';
+
+    // Bind Events
+    newAudio.addEventListener('timeupdate', () => setCurrentTime(newAudio.currentTime));
+    newAudio.addEventListener('loadedmetadata', () => setDuration(newAudio.duration));
+    newAudio.addEventListener('ended', () => setIsPlaying(false));
+    newAudio.addEventListener('play', () => setIsPlaying(true));
+    newAudio.addEventListener('pause', () => setIsPlaying(false));
+    newAudio.addEventListener('error', (e) => {
+        console.error("Audio playback error:", e);
+        setIsPlaying(false);
+        alert("无法播放音频 (Audio Error): 可能是因为跨域限制或链接无效。");
+    });
+
+    // Update Ref
+    audioRef.current = newAudio;
+
+    // 4. Connect to Visualizer (Only if NOT restricted)
+    if (!isRestricted) {
+        try {
+            // Initialize Audio Context if needed
+            if (!audioContextRef.current) {
+                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+                audioContextRef.current = new AudioContextClass();
+                analyserRef.current = audioContextRef.current.createAnalyser();
+                analyserRef.current.fftSize = 1024;
+                analyserRef.current.connect(audioContextRef.current.destination);
             }
+
+            // Resume context if suspended (browser autoplay policy)
+            if (audioContextRef.current.state === 'suspended') {
+                await audioContextRef.current.resume();
+            }
+
+            if (analyserRef.current && audioContextRef.current) {
+                 // Create a new source node for this specific element
+                 // Note: createMediaElementSource can only be called once per element. 
+                 // Since we created a NEW 'newAudio' instance, this is safe.
+                 const source = audioContextRef.current.createMediaElementSource(newAudio);
+                 source.connect(analyserRef.current);
+            }
+            setAnalyser(analyserRef.current);
+        } catch (err) {
+            console.warn("Visualizer setup failed (likely CORS), falling back to native audio.", err);
+            setAnalyser(null);
         }
     } else {
-        // Play new track
-        if (track.audioUrl) {
-            try {
-                // Optimistically pause the current track before switching
-                audioRef.current.pause();
-                audioRef.current.currentTime = 0;
-                
-                // Handle CORS for Netease or external sources that might block canvas analysis
-                // If it is Netease (163.com), removing crossOrigin might be safer for playback, 
-                // though it stops the visualizer from receiving data due to CORS.
-                if (track.audioUrl.includes('music.163.com') || track.sourceType === 'netease') {
-                    audioRef.current.removeAttribute('crossOrigin');
-                } else {
-                    audioRef.current.crossOrigin = "anonymous";
-                }
-                
-                audioRef.current.src = track.audioUrl;
-                audioRef.current.load(); // Ensure the new source is loaded
-                
-                const playPromise = audioRef.current.play();
-                
-                if (playPromise !== undefined) {
-                    playPromise
-                    .then(() => {
-                        setCurrentTrackId(track.id);
-                        setShowGlobalPlayer(true);
-                    })
-                    .catch(e => {
-                        console.error("Playback failed:", e);
-                        alert("Playback failed. The source might be restricted: " + e.message);
-                    });
-                }
-            } catch (err) {
-                console.error("Error setting up playback:", err);
-            }
-        } else {
-            console.warn("No audio URL for this track");
-            alert("This track does not have a valid audio URL.");
-        }
+        // Restricted Mode: Disable Visualizer
+        setAnalyser(null);
+    }
+
+    // 5. Start Playback
+    try {
+        await newAudio.play();
+        setCurrentTrackId(track.id);
+        setShowGlobalPlayer(true);
+        setIsPlaying(true);
+    } catch (e) {
+        console.error("Play request failed", e);
+        // alert("Playback failed: " + (e as Error).message);
     }
   };
 
@@ -326,6 +300,14 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener("mousemove", mouseMove);
       clearTimeout(timer);
+      // Cleanup audio on unmount
+      if (audioRef.current) {
+          audioRef.current.pause();
+          audioRef.current = null;
+      }
+      if (audioContextRef.current) {
+          audioContextRef.current.close();
+      }
     };
   }, []);
 

@@ -36,10 +36,10 @@ const GlitchDecodeText = ({
     clearInterval(intervalRef.current);
     
     intervalRef.current = setInterval(() => {
-      setDisplayText(prev => 
+      setDisplayText(() => 
         text
           .split("")
-          .map((letter, index) => {
+          .map((_letter, index) => {
             if (index < iteration) {
               return text[index];
             }

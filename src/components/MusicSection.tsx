@@ -1,8 +1,8 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, Heart, Share2, Music4, Disc, Info, ArrowUpRight, BarChart3 } from 'lucide-react';
-import { Track, FeaturedAlbum } from '../types';
+import { Play, Pause, Heart, Disc, Info, ArrowUpRight, BarChart3 } from 'lucide-react';
+import type { Track, FeaturedAlbum } from '../types';
 
 interface MusicSectionProps {
   tracks: Track[];
@@ -27,6 +27,7 @@ const Equalizer = ({ active }: { active: boolean }) => {
 };
 
 const MusicSection: React.FC<MusicSectionProps> = ({ tracks, featuredAlbum, currentTrackId, isPlaying, onPlayTrack, onViewDetails }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [filter, setFilter] = useState<'all' | 'singles' | 'albums'>('all');
 
   return (
@@ -55,6 +56,7 @@ const MusicSection: React.FC<MusicSectionProps> = ({ tracks, featuredAlbum, curr
               {['all', 'singles', 'albums'].map((f) => (
                   <button 
                     key={f}
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     onClick={() => setFilter(f as any)}
                     className={`px-6 py-2 rounded-full text-sm font-bold uppercase tracking-wider transition-all border ${filter === f ? 'bg-white text-midnight border-white' : 'bg-transparent text-slate-500 border-white/10 hover:border-white/30 hover:text-white'}`}
                   >

@@ -2,7 +2,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Calendar, ArrowRight, Hash, Play, Pause, Activity } from 'lucide-react';
-import { Article } from '../types';
+import type { Article } from '../types';
 
 interface ArticleSectionProps {
   articles: Article[];

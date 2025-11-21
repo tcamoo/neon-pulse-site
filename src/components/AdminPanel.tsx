@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Track, SiteData, Article, Artist, FeaturedAlbum, CloudConfig } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Cloud, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Menu, Type, Mail, Key, RefreshCw, Save, Disc, Album, Phone, MapPin, FileEdit, ToggleLeft, ToggleRight, CloudLightning, CloudRain, Eye, EyeOff, FolderOpen, ArrowUp, ExternalLink, HelpCircle, QrCode, LogIn, Copy, Wifi, WifiOff } from 'lucide-react';
+import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Cloud, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Menu, Type, Mail, Key, RefreshCw, Save, Disc, Album, Phone, MapPin, FileEdit, ToggleLeft, ToggleRight, CloudLightning, CloudRain, Eye, EyeOff, FolderOpen, ArrowUp, ExternalLink, HelpCircle, QrCode, LogIn, Copy, Wifi, WifiOff, Link } from 'lucide-react';
 
 interface AdminPanelProps {
   data: SiteData;
@@ -12,6 +12,105 @@ interface AdminPanelProps {
 
 type Tab = 'general' | 'music' | 'articles' | 'artists' | 'cloud' | 'contact';
 type CloudProvider = 'ali' | 'one' | 'cf' | null;
+
+// --- AWS Signature V4 Helper for R2/OSS Uploads (Browser Native) ---
+const uploadToS3 = async (file: File, config: CloudConfig, onProgress: (percent: number) => void): Promise<string> => {
+    if (!config.accessKey || !config.secretKey || !config.bucket || !config.endpoint || !config.publicDomain) {
+        throw new Error("配置不完整: 缺少 AccessKey, SecretKey, Bucket, Endpoint 或 Public Domain");
+    }
+
+    const method = 'PUT';
+    const service = 's3';
+    const region = 'auto'; // R2 default, OSS needs specific region but 'auto' often works for sig calculation if endpoint is full
+    // Clean endpoint
+    const endpointUrl = config.endpoint.startsWith('http') ? config.endpoint : `https://${config.endpoint}`;
+    // R2 often uses path style: https://<account>.r2.cloudflarestorage.com/<bucket>/<key>
+    // But easier is custom domain or S3 style. Let's assume standard virtual-hosted or path style.
+    // For R2: https://<accountid>.r2.cloudflarestorage.com/<bucketname>/<filename>
+    const host = new URL(endpointUrl).host;
+    const path = `/${config.bucket}/${file.name}`;
+    const url = `${endpointUrl}${path}`;
+    
+    const datetime = new Date().toISOString().replace(/[:-]|\.\d{3}/g, '');
+    const date = datetime.substr(0, 8);
+    
+    // 1. Payload SHA256
+    const arrayBuffer = await file.arrayBuffer();
+    const payloadHashBuf = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    const payloadHash = Array.from(new Uint8Array(payloadHashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // 2. Canonical Request
+    const canonicalHeaders = `host:${host}\nx-amz-content-sha256:${payloadHash}\nx-amz-date:${datetime}\n`;
+    const signedHeaders = 'host;x-amz-content-sha256;x-amz-date';
+    const canonicalRequest = `${method}\n${path}\n\n${canonicalHeaders}\n${signedHeaders}\n${payloadHash}`;
+
+    // 3. String to Sign
+    const algorithm = 'AWS4-HMAC-SHA256';
+    const credentialScope = `${date}/${region}/${service}/aws4_request`;
+    const canonicalRequestHashBuf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonicalRequest));
+    const canonicalRequestHash = Array.from(new Uint8Array(canonicalRequestHashBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    const stringToSign = `${algorithm}\n${datetime}\n${credentialScope}\n${canonicalRequestHash}`;
+
+    // 4. Sign Key
+    const getSignatureKey = async (key: string, date: string, regionName: string, serviceName: string) => {
+        const enc = new TextEncoder();
+        const kDate = await crypto.subtle.sign('HMAC', await crypto.subtle.importKey('raw', enc.encode(`AWS4${key}`), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']), enc.encode(date));
+        const kRegion = await crypto.subtle.sign('HMAC', await crypto.subtle.importKey('raw', kDate, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']), enc.encode(regionName));
+        const kService = await crypto.subtle.sign('HMAC', await crypto.subtle.importKey('raw', kRegion, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']), enc.encode(serviceName));
+        const kSigning = await crypto.subtle.sign('HMAC', await crypto.subtle.importKey('raw', kService, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']), enc.encode('aws4_request'));
+        return kSigning;
+    };
+
+    const signingKeyBuffer = await getSignatureKey(config.secretKey, date, region, service);
+    const signingKey = await crypto.subtle.importKey('raw', signingKeyBuffer, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+    const signatureBuf = await crypto.subtle.sign('HMAC', signingKey, new TextEncoder().encode(stringToSign));
+    const signature = Array.from(new Uint8Array(signatureBuf)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+    // 5. Authorization Header
+    const authorizationHeader = `${algorithm} Credential=${config.accessKey}/${credentialScope}, SignedHeaders=${signedHeaders}, Signature=${signature}`;
+
+    // 6. Perform Upload
+    // Simulate progress since fetch doesn't support it natively easily without XHR
+    let progress = 0;
+    const progressInterval = setInterval(() => {
+        progress = Math.min(progress + 10, 90);
+        onProgress(progress);
+    }, 200);
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'x-amz-date': datetime,
+                'x-amz-content-sha256': payloadHash,
+                'Authorization': authorizationHeader,
+                'Content-Type': file.type || 'application/octet-stream',
+            },
+            body: file
+        });
+
+        clearInterval(progressInterval);
+        
+        if (!response.ok) {
+            const errText = await response.text();
+            throw new Error(`Upload Failed: ${response.status} ${errText}`);
+        }
+        
+        onProgress(100);
+        
+        // Construct Public URL
+        // Remove trailing slash from domain
+        const publicDomain = config.publicDomain.replace(/\/$/, '');
+        // Encode filename for URL
+        const encodedFilename = encodeURIComponent(file.name);
+        return `${publicDomain}/${encodedFilename}`;
+
+    } catch (error) {
+        clearInterval(progressInterval);
+        throw error;
+    }
+};
+
 
 // Interactive Text Component for Header
 const SonicText = ({ text }: { text: string }) => {
@@ -36,7 +135,6 @@ const SonicText = ({ text }: { text: string }) => {
     );
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const TabButton = ({ 
   id, 
   activeTab, 
@@ -64,7 +162,7 @@ const TabButton = ({
   </button>
 );
 
-const UploadProgressWidget = ({ progress, speed, remaining, active }: { progress: number, speed: string, remaining: string, active: boolean }) => {
+const UploadProgressWidget = ({ progress, speed, remaining, active, message }: { progress: number, speed: string, remaining: string, active: boolean, message?: string }) => {
     if (!active) return null;
     
     return (
@@ -74,7 +172,7 @@ const UploadProgressWidget = ({ progress, speed, remaining, active }: { progress
                 <div className="flex flex-col">
                     <span className="text-[10px] font-mono text-electric-cyan uppercase tracking-widest mb-1 flex items-center gap-2">
                         <Activity size={12} className="animate-pulse" /> 
-                        正在上传 (Uplink Active)
+                        {message || "正在上传 (Uplink Active)"}
                     </span>
                     <span className="text-2xl font-display font-bold text-white tracking-tighter">
                         {Math.round(progress)}<span className="text-sm text-slate-500">%</span>
@@ -122,16 +220,19 @@ const CloudConfigForm = ({
 
     const handleTestConnection = () => {
         setTestStatus('testing');
-        // Simulate API check
+        
+        // For S3, we can try to check if we can sign a request, but without CORS configured on bucket, OPTIONS might fail.
+        // We'll simulate a basic validation check.
         setTimeout(() => {
-            // Basic validation simulation
             if (type === 's3') {
-                if (localConfig.accessKey && localConfig.secretKey && localConfig.bucket && localConfig.publicDomain) {
-                    setTestStatus('success');
+                // Basic validation
+                if (localConfig.accessKey && localConfig.secretKey && localConfig.bucket && localConfig.endpoint) {
+                     setTestStatus('success');
                 } else {
-                    setTestStatus('error');
+                     setTestStatus('error');
                 }
             } else {
+                // Basic validation for OAuth
                 if (localConfig.refreshToken) {
                     setTestStatus('success');
                 } else {
@@ -167,9 +268,9 @@ const CloudConfigForm = ({
                             className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-electric-cyan text-xs focus:border-electric-cyan outline-none"
                             value={localConfig.publicDomain || ''}
                             onChange={(e) => setLocalConfig({...localConfig, publicDomain: e.target.value})}
-                            placeholder="https://music.your-domain.com (用于生成永久文件链接)"
+                            placeholder="https://pub-xxx.r2.dev (用于生成永久链接)"
                         />
-                        <p className="text-[10px] text-slate-500">文件上传后将生成: <code>{localConfig.publicDomain || 'https://...'}/filename.mp3</code></p>
+                        <p className="text-[10px] text-slate-500">文件上传后链接为: <code>{localConfig.publicDomain || 'https://...'}/filename.mp3</code>。请确保 R2 后台已绑定此域名并开启公开访问。</p>
                     </div>
 
                     <div className="space-y-1">
@@ -217,8 +318,9 @@ const CloudConfigForm = ({
                             className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
                             value={localConfig.endpoint || ''}
                             onChange={(e) => setLocalConfig({...localConfig, endpoint: e.target.value})}
-                            placeholder="xxxx.r2.cloudflarestorage.com"
+                            placeholder="https://<account_id>.r2.cloudflarestorage.com"
                         />
+                         <p className="text-[10px] text-slate-500">R2 格式: <code>https://&lt;account_id&gt;.r2.cloudflarestorage.com</code></p>
                     </div>
                 </div>
             )}
@@ -233,55 +335,24 @@ const CloudConfigForm = ({
                                 <LogIn size={16} />
                             </div>
                             <div>
-                                <h4 className="text-xs font-bold text-white">快速获取授权 (Quick Auth)</h4>
+                                <h4 className="text-xs font-bold text-white">关于个人网盘上传 (Important)</h4>
                                 <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
-                                    点击下方按钮前往官方授权页面，登录账号后复制 <code className="bg-black/30 px-1 rounded text-electric-cyan">Refresh Token</code> 并填入下方。
+                                    由于浏览器的安全策略(CORS)，纯静态网页无法直接上传文件到个人网盘(OneDrive/阿里云盘)。
+                                    <br/><span className="text-white">解决方案：</span>请手动上传文件到网盘，生成分享直链，然后将链接填入“音频URL”框中。
                                 </p>
                             </div>
                         </div>
-                        {authLink && (
-                            <a 
-                                href={authLink} 
-                                target="_blank" 
-                                rel="noreferrer"
-                                className="flex items-center justify-center gap-2 w-full py-2 bg-electric-cyan text-midnight font-bold text-xs rounded-lg hover:bg-white transition-colors"
-                            >
-                                <ExternalLink size={14} /> 前往获取授权 Token
-                            </a>
-                        )}
                     </div>
-
-                    {/* Form Fields */}
-                    <div className="space-y-4 pt-2">
-                        <div className="space-y-1">
-                             <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-                                Public Domain (CDN 加速域名) <span className="text-red-500">*</span>
-                             </label>
-                             <input 
-                                type="text" 
-                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-electric-cyan text-xs focus:border-electric-cyan outline-none"
-                                value={localConfig.publicDomain || ''}
-                                onChange={(e) => setLocalConfig({...localConfig, publicDomain: e.target.value})}
-                                placeholder="https://drive-cdn.your-domain.com"
-                            />
-                             <p className="text-[10px] text-slate-500">用于生成可公开访问的文件直链</p>
-                        </div>
-
-                        <div className="space-y-1">
-                            <label className="text-[10px] font-bold text-slate-500 uppercase">Refresh Token (刷新令牌)</label>
-                            <div className="relative group">
-                                <textarea 
-                                    rows={3}
-                                    className="w-full bg-white/5 border border-white/10 rounded-lg p-3 text-white text-xs focus:border-white outline-none font-mono resize-none"
-                                    value={localConfig.refreshToken || ''}
-                                    onChange={(e) => setLocalConfig({...localConfig, refreshToken: e.target.value})}
-                                    placeholder="粘贴 Token..."
-                                />
-                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Copy size={12} className="text-slate-500"/>
-                                </div>
-                            </div>
-                        </div>
+                    
+                    <div className="space-y-1 pt-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">授权 Token (可选 - 仅用于 API 读取)</label>
+                        <input 
+                            type="text" 
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
+                            value={localConfig.refreshToken || ''}
+                            onChange={(e) => setLocalConfig({...localConfig, refreshToken: e.target.value})}
+                            placeholder="Refresh Token..."
+                        />
                     </div>
                 </div>
             )}
@@ -300,15 +371,15 @@ const CloudConfigForm = ({
                      testStatus === 'success' ? <CheckCircle2 size={14}/> : 
                      testStatus === 'error' ? <AlertCircle size={14}/> : <Wifi size={14}/>}
                     {testStatus === 'testing' ? '检测中...' : 
-                     testStatus === 'success' ? '连接成功' : 
-                     testStatus === 'error' ? '连接失败 (检查配置)' : '测试连接'}
+                     testStatus === 'success' ? '配置格式正确' : 
+                     testStatus === 'error' ? '信息不完整' : '检查配置格式'}
                 </button>
 
                 <button 
                     onClick={() => onSave({...localConfig, enabled: true})}
                     className={`px-6 py-2.5 rounded-lg font-bold text-xs text-white flex items-center gap-2 shadow-lg hover:scale-105 transition-all ${color.replace('text-', 'bg-')}`}
                 >
-                    <Save size={16} /> 保存并连接
+                    <Save size={16} /> 保存配置
                 </button>
             </div>
         </motion.div>
@@ -360,13 +431,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   // Which Cloud Config Form is Open
   const [editingCloud, setEditingCloud] = useState<CloudProvider>(null);
 
-  // Cloud Files State
+  // Cloud Files State (Simulated list + Uploaded list)
   const [cloudFiles, setCloudFiles] = useState<{name: string, size: string, url: string, provider: 'ali' | 'one' | 'cf', type: 'audio' | 'image', isNew?: boolean}[]>([
       { name: 'VES_Demo_v1.mp3', size: '8.4 MB', url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3', provider: 'ali', type: 'audio' },
       { name: 'Cover_Art_Final.jpg', size: '2.1 MB', url: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=2070&auto=format&fit=crop', provider: 'ali', type: 'image' },
-      { name: 'Live_Shanghai_Set.wav', size: '42.1 MB', url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Elipses.mp3', provider: 'ali', type: 'audio' },
-      { name: 'Instrumental_04.mp3', size: '5.2 MB', url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Algorithms.mp3', provider: 'one', type: 'audio' },
-      { name: 'Master_Tape_R2.flac', size: '55.8 MB', url: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3', provider: 'cf', type: 'audio' },
   ]);
   
   // Sync Status State
@@ -378,44 +446,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
     progress: number;
     speed: string;
     remaining: string;
+    message?: string;
   }>({ active: false, progress: 0, speed: '0 MB/s', remaining: '0s' });
 
   // --- Helpers ---
   const getRandomImage = () => `https://picsum.photos/400/400?random=${Math.floor(Math.random() * 1000)}`;
-
-  const simulateUpload = (onComplete: (url: string) => void) => {
-    setUploadStatus({ active: true, progress: 0, speed: '1.5 MB/s', remaining: '计算中...' });
-    
-    let progress = 0;
-    const duration = 1500;
-    const intervalTime = 50;
-    const steps = duration / intervalTime;
-    const increment = 100 / steps;
-
-    const timer = setInterval(() => {
-      progress += increment;
-      const currentSpeed = (1.5 + Math.random() * 3.0).toFixed(1); 
-      const remainingSeconds = Math.max(0, Math.ceil((duration - (progress / 100 * duration)) / 1000));
-
-      if (progress >= 100) {
-        progress = 100;
-        clearInterval(timer);
-        setTimeout(() => {
-            setUploadStatus({ active: false, progress: 0, speed: '0 MB/s', remaining: '0s' });
-            // Pass dummy blob first, actual handler will replace it
-            onComplete(`blob:simulated_upload_${Date.now()}`); 
-        }, 500);
-      } 
-      
-      setUploadStatus(() => ({ 
-          active: true, 
-          progress: Math.min(progress, 100), 
-          speed: `${currentSpeed} MB/s`, 
-          remaining: `${remainingSeconds}s` 
-      }));
-      
-    }, intervalTime);
-  };
 
   // --- Handlers ---
   const handleHeroChange = (field: keyof SiteData['hero'], value: string) => {
@@ -542,61 +577,77 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       }
   };
 
-  const handleCloudUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // --- REAL Upload Logic ---
+  const handleCloudUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
+      if (!file) return;
+
+      // Check which provider is active in the picker
+      let config: CloudConfig | undefined;
+      // Currently, Cloudflare R2 is the most viable for direct browser upload via S3 API
+      if (pickerProvider === 'cf') config = data.integrations.cloudflare;
       
-      if (file && pickerProvider !== 'local') {
-          simulateUpload(() => {
-              // 1. Determine Active Provider Config
-              let providerConfig: CloudConfig | undefined;
-              if (pickerProvider === 'ali') providerConfig = data.integrations.aliDrive;
-              if (pickerProvider === 'one') providerConfig = data.integrations.oneDrive;
-              if (pickerProvider === 'cf') providerConfig = data.integrations.cloudflare;
-
-              // 2. Construct the Permanent Link
-              // If the user has configured a Public Domain, use it. Otherwise fallback to a dummy or blob.
-              let finalUrl = '';
-              if (providerConfig && providerConfig.publicDomain) {
-                  // Clean up trailing slash
-                  const domain = providerConfig.publicDomain.replace(/\/$/, '');
-                  // Construct URL: https://<domain>/<filename>
-                  // Note: In a real app, you might need to URL encode the filename or generate a UUID
-                  finalUrl = `${domain}/${file.name}`;
-              } else {
-                  // Fallback if no public domain is set (acts as a local preview for now)
-                  // In a real scenario, we'd prompt the user to set the domain.
-                  finalUrl = URL.createObjectURL(file);
-                  console.warn("No public domain configured for this provider. Using blob URL which will expire.");
-              }
-
+      // If using Aliyun, we treat it as OAuth/Link mode usually, BUT if user configured S3 keys for OSS, we can use that.
+      // However, user specifically asked for "Aliyun Drive Personal" which is OAuth. 
+      // We cannot direct upload to Personal Drive via Browser CORS easily without a proxy.
+      // So we restrict "Real Upload" to R2 (CF) mainly.
+      
+      if (pickerProvider === 'cf' && config?.enabled) {
+          // Start Real Upload
+          setUploadStatus({ active: true, progress: 0, speed: 'Calculating...', remaining: '...', message: '正在连接 R2...' });
+          
+          try {
+              const publicUrl = await uploadToS3(file, config, (percent) => {
+                  setUploadStatus(prev => ({
+                      ...prev,
+                      progress: percent,
+                      speed: 'Uploading',
+                      remaining: percent < 100 ? '...' : 'Finishing',
+                      message: percent < 100 ? '上传中 (Uploading)...' : '处理中 (Processing)...'
+                  }));
+              });
+              
+              // Success
               const newFile = {
                   name: file.name,
                   size: (file.size / 1024 / 1024).toFixed(1) + ' MB',
-                  url: finalUrl,
-                  provider: pickerProvider as 'ali' | 'one' | 'cf',
+                  url: publicUrl,
+                  provider: 'cf' as const,
                   type: file.type.startsWith('image') ? 'image' : 'audio' as 'image'|'audio',
                   isNew: true
               };
+              
               setCloudFiles(prev => [newFile, ...prev]);
-          });
+              setUploadStatus({ active: false, progress: 0, speed: '', remaining: '' });
+              
+              // Auto-select? Maybe just let user click it.
+              // alert("上传成功！");
+
+          } catch (err: any) {
+              console.error(err);
+              setUploadStatus(prev => ({ ...prev, message: '上传失败: ' + err.message }));
+              setTimeout(() => setUploadStatus({ active: false, progress: 0, speed: '', remaining: '' }), 3000);
+          }
+      } else {
+          // Fallback / Simulation for other providers where direct upload isn't implemented
+          alert("当前仅支持 Cloudflare R2 进行网页直传。\n\n对于 OneDrive 或 阿里云盘，请使用客户端上传后，粘贴分享直链。");
       }
   };
 
+  // Local blob upload (Simulation) - kept for local preview
   const handleGenericUpload = (e: React.ChangeEvent<HTMLInputElement>, target: 'hero' | 'album' | 'track' | 'article') => {
       const file = e.target.files?.[0];
       if (file) {
-          simulateUpload((url) => {
-             const finalUrl = URL.createObjectURL(file);
-             if (target === 'hero') {
-                 updateData(prev => ({ ...prev, hero: { ...prev.hero, heroImage: finalUrl } }));
-             } else if (target === 'album') {
-                 updateData(prev => ({ ...prev, featuredAlbum: { ...prev.featuredAlbum, coverUrl: finalUrl } }));
-             } else if (target === 'article') {
-                 setNewArticle(prev => ({ ...prev, coverUrl: finalUrl }));
-             } else if (target === 'track') {
-                 setNewTrack(prev => ({ ...prev, audioUrl: finalUrl }));
-             }
-          });
+          const finalUrl = URL.createObjectURL(file);
+          if (target === 'hero') {
+                updateData(prev => ({ ...prev, hero: { ...prev.hero, heroImage: finalUrl } }));
+            } else if (target === 'album') {
+                updateData(prev => ({ ...prev, featuredAlbum: { ...prev.featuredAlbum, coverUrl: finalUrl } }));
+            } else if (target === 'article') {
+                setNewArticle(prev => ({ ...prev, coverUrl: finalUrl }));
+            } else if (target === 'track') {
+                setNewTrack(prev => ({ ...prev, audioUrl: finalUrl }));
+            }
       }
   }
   
@@ -739,7 +790,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-xs text-white">预览</div>
                                  </div>
                                  <div className="flex-1 w-full">
-                                     <UploadProgressWidget active={uploadStatus.active} progress={uploadStatus.progress} speed={uploadStatus.speed} remaining={uploadStatus.remaining} />
+                                     <UploadProgressWidget active={uploadStatus.active} progress={uploadStatus.progress} speed={uploadStatus.speed} remaining={uploadStatus.remaining} message={uploadStatus.message} />
                                      {!uploadStatus.active && (
                                          <div className="flex gap-3">
                                              <button 
@@ -843,8 +894,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                 </div>
                                 {newTrack.sourceType === 'native' ? (
                                     <div className="flex flex-col md:flex-row gap-2">
-                                        <input className="flex-1 bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none text-xs font-mono" value={newTrack.audioUrl} onChange={e => setNewTrack({...newTrack, audioUrl: e.target.value})} placeholder="输入音频URL (mp3/wav)..." />
-                                        <button onClick={() => { setPickerTarget('track'); setPickerMode('music'); setPickerProvider('local'); setShowCloudPicker(true); }} className="bg-electric-cyan/10 text-electric-cyan px-4 py-2 md:py-0 rounded-lg border border-electric-cyan/20 flex items-center justify-center gap-2 text-xs font-bold"><Cloud size={16} /> 选择文件</button>
+                                        <input className="flex-1 bg-black/50 p-3 rounded-lg border border-white/10 text-white focus:border-electric-cyan outline-none text-xs font-mono" value={newTrack.audioUrl} onChange={e => setNewTrack({...newTrack, audioUrl: e.target.value})} placeholder="输入音频URL (mp3/wav) 或使用 R2 上传..." />
+                                        <button onClick={() => { setPickerTarget('track'); setPickerMode('music'); setPickerProvider('cf'); setShowCloudPicker(true); }} className="bg-electric-cyan/10 text-electric-cyan px-4 py-2 md:py-0 rounded-lg border border-electric-cyan/20 flex items-center justify-center gap-2 text-xs font-bold"><Cloud size={16} /> 云端上传(R2)</button>
                                         <input type="file" accept="audio/*" className="hidden" ref={audioInputRef} onChange={(e) => handleGenericUpload(e, 'track')} />
                                     </div>
                                 ) : (
@@ -1104,10 +1155,48 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                             <HardDrive size={20} className="text-blue-400"/> 文件对象存储 (File Storage)
                         </h4>
                         <p className="text-sm text-slate-400 mb-6">
-                            配置第三方存储服务以支持大文件（音频/图片）上传。支持 OAuth 快速授权。
+                            配置第三方存储服务以支持大文件（音频/图片）上传。
                         </p>
 
                         <div className="grid gap-4">
+                            {/* Cloudflare Toggle */}
+                            <div className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-yellow-500/30 transition-all">
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${data.integrations.cloudflare?.enabled ? 'bg-yellow-500 text-midnight' : 'bg-white/10 text-slate-500'}`}>
+                                            <Database size={24} />
+                                        </div>
+                                        <div>
+                                            <h4 className="text-white font-bold flex items-center gap-2">
+                                                Cloudflare R2 (推荐)
+                                                {data.integrations.cloudflare?.enabled && <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">已连接</span>}
+                                            </h4>
+                                            <p className="text-xs text-slate-500">兼容 S3 协议，支持浏览器直接上传。</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => handleCloudToggle('cf')}
+                                        className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 transition-all
+                                        ${data.integrations.cloudflare?.enabled ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white' : 'bg-white/10 text-white hover:bg-yellow-500'}`}
+                                    >
+                                        {data.integrations.cloudflare?.enabled ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
+                                        {data.integrations.cloudflare?.enabled ? '断开连接' : '配置密钥'}
+                                    </button>
+                                </div>
+                                 <AnimatePresence>
+                                    {editingCloud === 'cf' && !data.integrations.cloudflare?.enabled && (
+                                        <CloudConfigForm 
+                                            label="Cloudflare R2" 
+                                            color="text-yellow-500"
+                                            config={data.integrations.cloudflare}
+                                            onSave={(config) => handleSaveCloudConfig('cf', config)}
+                                            onCancel={() => setEditingCloud(null)}
+                                            type="s3"
+                                        />
+                                    )}
+                                </AnimatePresence>
+                            </div>
+
                             {/* Aliyun Drive Personal Toggle */}
                             <div className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-orange-500/30 transition-all">
                                 <div className="flex items-center justify-between">
@@ -1118,9 +1207,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                         <div>
                                             <h4 className="text-white font-bold flex items-center gap-2">
                                                 阿里云盘 (个人版)
-                                                {data.integrations.aliDrive?.enabled && <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">已连接</span>}
+                                                {data.integrations.aliDrive?.enabled && <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">Token 配置</span>}
                                             </h4>
-                                            <p className="text-xs text-slate-500">大容量个人云盘，通过 OAuth 授权挂载。</p>
+                                            <p className="text-xs text-slate-500">仅用于读取，不支持浏览器直传。</p>
                                         </div>
                                     </div>
                                     <button 
@@ -1129,7 +1218,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                         ${data.integrations.aliDrive?.enabled ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white' : 'bg-white/10 text-white hover:bg-orange-500'}`}
                                     >
                                         {data.integrations.aliDrive?.enabled ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
-                                        {data.integrations.aliDrive?.enabled ? '断开连接' : '授权连接'}
+                                        {data.integrations.aliDrive?.enabled ? '断开连接' : '配置直链'}
                                     </button>
                                 </div>
                                 
@@ -1158,9 +1247,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                         <div>
                                             <h4 className="text-white font-bold flex items-center gap-2">
                                                 Microsoft OneDrive 
-                                                {data.integrations.oneDrive?.enabled && <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">已连接</span>}
+                                                {data.integrations.oneDrive?.enabled && <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">Token 配置</span>}
                                             </h4>
-                                            <p className="text-xs text-slate-500">Office 365 生态，通过 OAuth 授权挂载。</p>
+                                            <p className="text-xs text-slate-500">仅用于读取，不支持浏览器直传。</p>
                                         </div>
                                     </div>
                                     <button 
@@ -1169,7 +1258,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                         ${data.integrations.oneDrive?.enabled ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white' : 'bg-white/10 text-white hover:bg-blue-500'}`}
                                     >
                                         {data.integrations.oneDrive?.enabled ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
-                                        {data.integrations.oneDrive?.enabled ? '断开连接' : '授权连接'}
+                                        {data.integrations.oneDrive?.enabled ? '断开连接' : '配置直链'}
                                     </button>
                                 </div>
                                 <AnimatePresence>
@@ -1186,44 +1275,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                     )}
                                 </AnimatePresence>
                             </div>
-
-                            {/* Cloudflare Toggle */}
-                            <div className="bg-white/5 border border-white/10 rounded-xl p-5 hover:border-yellow-500/30 transition-all">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${data.integrations.cloudflare?.enabled ? 'bg-yellow-500 text-midnight' : 'bg-white/10 text-slate-500'}`}>
-                                            <Database size={24} />
-                                        </div>
-                                        <div>
-                                            <h4 className="text-white font-bold flex items-center gap-2">
-                                                Cloudflare R2 
-                                                {data.integrations.cloudflare?.enabled && <span className="text-[10px] bg-green-500/20 text-green-500 px-2 py-0.5 rounded-full">已连接</span>}
-                                            </h4>
-                                            <p className="text-xs text-slate-500">S3 兼容，零出口费用存储方案。</p>
-                                        </div>
-                                    </div>
-                                    <button 
-                                        onClick={() => handleCloudToggle('cf')}
-                                        className={`px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 transition-all
-                                        ${data.integrations.cloudflare?.enabled ? 'bg-red-500/20 text-red-400 border border-red-500/50 hover:bg-red-500 hover:text-white' : 'bg-white/10 text-white hover:bg-yellow-500'}`}
-                                    >
-                                        {data.integrations.cloudflare?.enabled ? <ToggleRight size={18}/> : <ToggleLeft size={18}/>}
-                                        {data.integrations.cloudflare?.enabled ? '断开连接' : '配置密钥'}
-                                    </button>
-                                </div>
-                                 <AnimatePresence>
-                                    {editingCloud === 'cf' && !data.integrations.cloudflare?.enabled && (
-                                        <CloudConfigForm 
-                                            label="Cloudflare R2" 
-                                            color="text-yellow-500"
-                                            config={data.integrations.cloudflare}
-                                            onSave={(config) => handleSaveCloudConfig('cf', config)}
-                                            onCancel={() => setEditingCloud(null)}
-                                            type="s3"
-                                        />
-                                    )}
-                                </AnimatePresence>
-                            </div>
                         </div>
                     </div>
                 </motion.div>
@@ -1232,7 +1283,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
         </div>
       </div>
       
-      {/* Cloud Picker Modal (Same as before) */}
+      {/* Cloud Picker Modal */}
       {showCloudPicker && (
         <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center backdrop-blur-sm p-4">
             <div className="bg-[#0F172A] border border-white/10 w-full max-w-2xl h-[600px] flex flex-col rounded-2xl shadow-2xl overflow-hidden">
@@ -1248,9 +1299,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                       {/* Sidebar */}
                       <div className="w-full md:w-48 bg-black/20 border-b md:border-b-0 md:border-r border-white/10 p-2 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible shrink-0">
                            <button onClick={() => setPickerProvider('local')} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'local' ? 'bg-white/10 text-white' : 'text-slate-400 hover:text-white'}`}><HardDrive size={16} /> 本地</button>
+                          <button onClick={() => setPickerProvider('cf')} disabled={!data.integrations.cloudflare?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'cf' ? 'bg-yellow-500/20 text-yellow-500' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><Database size={16} /> Cloudflare R2</button>
                           <button onClick={() => setPickerProvider('ali')} disabled={!data.integrations.aliDrive?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'ali' ? 'bg-orange-500/20 text-orange-500' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><CloudLightning size={16} /> 阿里云盘</button>
                           <button onClick={() => setPickerProvider('one')} disabled={!data.integrations.oneDrive?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'one' ? 'bg-blue-500/20 text-blue-400' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><CloudRain size={16} /> OneDrive</button>
-                          <button onClick={() => setPickerProvider('cf')} disabled={!data.integrations.cloudflare?.enabled} className={`p-3 rounded-lg flex items-center gap-3 text-sm font-bold text-left shrink-0 ${pickerProvider === 'cf' ? 'bg-yellow-500/20 text-yellow-500' : 'text-slate-400 hover:text-white disabled:opacity-30 cursor-not-allowed'}`}><Database size={16} /> Cloudflare</button>
                       </div>
 
                       {/* Content */}
@@ -1269,7 +1320,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                     setShowCloudPicker(false); 
                                 }}>
                                     <Upload size={40} className="text-slate-500 mb-4" />
-                                    <p className="text-slate-400 text-sm font-bold">点击上传本地文件</p>
+                                    <p className="text-slate-400 text-sm font-bold">点击选择本地文件 (模拟)</p>
+                                    <p className="text-[10px] text-slate-600 mt-2">注意：本地文件刷新后会失效</p>
                                 </div>
                             ) : (
                                 <div className="space-y-4">
@@ -1278,23 +1330,25 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                         <div className="flex items-center gap-2 text-xs text-slate-400 font-mono">
                                             <FolderOpen size={14} />
                                             <span>
-                                                {pickerProvider === 'one' ? 'Root' : 'Bucket: ' + (
-                                                    pickerProvider === 'ali' ? 'Aliyun Drive' :
-                                                    (data.integrations.cloudflare?.bucket || 'r2-bucket')
-                                                )}
+                                                {pickerProvider === 'cf' ? 'R2 Bucket' : 'Cloud Storage'}
                                             </span>
                                         </div>
-                                        <button 
-                                            onClick={() => cloudUploadInputRef.current?.click()}
-                                            disabled={uploadStatus.active}
-                                            className="bg-white text-midnight px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 hover:bg-slate-200 disabled:opacity-50"
-                                        >
-                                            <ArrowUp size={14} /> 上传
-                                        </button>
+                                        {/* Only allow upload for CF R2 in this demo */}
+                                        {pickerProvider === 'cf' ? (
+                                             <button 
+                                                onClick={() => cloudUploadInputRef.current?.click()}
+                                                disabled={uploadStatus.active}
+                                                className="bg-white text-midnight px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 hover:bg-slate-200 disabled:opacity-50"
+                                            >
+                                                <ArrowUp size={14} /> 上传到 R2
+                                            </button>
+                                        ) : (
+                                            <span className="text-[10px] text-slate-500">仅支持 R2 直传</span>
+                                        )}
                                     </div>
 
                                     {/* Upload Progress inside Picker */}
-                                    <UploadProgressWidget active={uploadStatus.active} progress={uploadStatus.progress} speed={uploadStatus.speed} remaining={uploadStatus.remaining} />
+                                    <UploadProgressWidget active={uploadStatus.active} progress={uploadStatus.progress} speed={uploadStatus.speed} remaining={uploadStatus.remaining} message={uploadStatus.message} />
 
                                     {/* File List */}
                                     <div className="space-y-2">

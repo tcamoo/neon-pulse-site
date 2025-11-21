@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, Heart, Disc, Info, ArrowUpRight, BarChart3 } from 'lucide-react';
+import { Play, Pause, Heart, Disc, Info, ArrowUpRight, BarChart3, Music2 } from 'lucide-react';
 import type { Track, FeaturedAlbum } from '../types';
 
 interface MusicSectionProps {
@@ -127,8 +127,30 @@ const MusicSection: React.FC<MusicSectionProps> = ({ tracks, featuredAlbum, curr
              </div>
           ) : (
              tracks.map((track, index) => {
+                // If Netease ID exists, we treat it as a Netease track
+                const isNetease = !!track.neteaseId;
                 const isActive = currentTrackId === track.id;
                 const isCurrentlyPlaying = isActive && isPlaying;
+
+                if (isNetease && isActive) {
+                    // Expanded Netease Player View
+                    return (
+                        <motion.div 
+                            key={track.id}
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            className="rounded-2xl overflow-hidden border border-hot-pink/50 shadow-[0_0_30px_rgba(255,0,128,0.15)] mb-4"
+                        >
+                            <iframe 
+                                frameBorder="no" 
+                                width="100%" 
+                                height="86" 
+                                src={`//music.163.com/outchain/player?type=2&id=${track.neteaseId}&auto=1&height=66`}
+                                className="block"
+                            ></iframe>
+                        </motion.div>
+                    )
+                }
 
                 return (
                   <motion.div
@@ -147,6 +169,11 @@ const MusicSection: React.FC<MusicSectionProps> = ({ tracks, featuredAlbum, curr
                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover/cover:opacity-100 transition-opacity">
                                {isCurrentlyPlaying ? <Pause size={24} fill="white" /> : <Play size={24} fill="white" />}
                            </div>
+                           {isNetease && (
+                               <div className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5" title="网易云音乐">
+                                   <Music2 size={10} />
+                               </div>
+                           )}
                         </div>
 
                         {/* Track Info */}
@@ -165,6 +192,7 @@ const MusicSection: React.FC<MusicSectionProps> = ({ tracks, featuredAlbum, curr
                               <span className="text-slate-400">{track.artist}</span>
                               <span className="w-1 h-1 bg-slate-700 rounded-full"></span>
                               <span className="text-slate-500">{track.album}</span>
+                              {isNetease && <span className="text-red-400 text-[10px] border border-red-400/30 px-1.5 rounded">Netease</span>}
                            </div>
                         </div>
 

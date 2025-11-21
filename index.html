@@ -16,11 +16,11 @@
               display: ['Syne', 'sans-serif'],
             },
             colors: {
-              'midnight': '#0F172A',
-              'hot-pink': '#FF0080',
-              'lime-punch': '#D9F99D',
-              'electric-cyan': '#06B6D4',
-              'surface': '#1E293B',
+              'midnight': 'var(--color-bg)',
+              'hot-pink': 'var(--color-primary)',
+              'lime-punch': 'var(--color-accent)',
+              'electric-cyan': 'var(--color-secondary)',
+              'surface': 'var(--color-surface)',
             },
             animation: {
               'float': 'float 6s ease-in-out infinite',
@@ -33,17 +33,27 @@
               }
             },
             backgroundImage: {
-              'grid-pattern': "linear-gradient(to right, #1E293B 1px, transparent 1px), linear-gradient(to bottom, #1E293B 1px, transparent 1px)",
+              'grid-pattern': "linear-gradient(to right, var(--color-surface) 1px, transparent 1px), linear-gradient(to bottom, var(--color-surface) 1px, transparent 1px)",
             }
           },
         },
       }
     </script>
     <style>
+      :root {
+        /* Default Theme (Cyberpunk) */
+        --color-bg: #0F172A;
+        --color-primary: #FF0080;
+        --color-secondary: #06B6D4;
+        --color-accent: #D9F99D;
+        --color-surface: #1E293B;
+      }
+
       body {
-        background-color: #0F172A;
+        background-color: var(--color-bg);
         color: #F8FAFC;
         overflow-x: hidden;
+        transition: background-color 0.5s ease, color 0.5s ease;
       }
       
       .bg-grid {
@@ -57,14 +67,14 @@
         width: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #0F172A;
+        background: var(--color-bg);
       }
       ::-webkit-scrollbar-thumb {
-        background: #FF0080;
+        background: var(--color-primary);
         border-radius: 4px;
       }
       ::-webkit-scrollbar-thumb:hover {
-        background: #D9F99D;
+        background: var(--color-accent);
       }
 
       .text-stroke {

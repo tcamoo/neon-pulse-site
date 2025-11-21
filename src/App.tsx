@@ -147,13 +147,32 @@ const INITIAL_DATA: SiteData = {
 
 const App: React.FC = () => {
   // Initialize state from localStorage first (fastest), then try Cloud sync
+  // Deep merge logic to ensure new data structures (like integrations/resources) persist even if local storage has old schema
   const [siteData, setSiteData] = useState<SiteData>(() => {
     try {
       const savedData = localStorage.getItem('ves_site_data');
       if (savedData) {
         const parsed = JSON.parse(savedData);
-        // Merge defaults to ensure new fields exist
-        return { ...INITIAL_DATA, ...parsed };
+        return {
+            ...INITIAL_DATA,
+            ...parsed,
+            hero: { ...INITIAL_DATA.hero, ...(parsed.hero || {}) },
+            contact: { ...INITIAL_DATA.contact, ...(parsed.contact || {}) },
+            featuredAlbum: { ...INITIAL_DATA.featuredAlbum, ...(parsed.featuredAlbum || {}) },
+            integrations: {
+                ...INITIAL_DATA.integrations,
+                ...(parsed.integrations || {}),
+                aliDrive: { ...INITIAL_DATA.integrations.aliDrive, ...(parsed.integrations?.aliDrive || {}) },
+                oneDrive: { ...INITIAL_DATA.integrations.oneDrive, ...(parsed.integrations?.oneDrive || {}) },
+                cloudflare: { ...INITIAL_DATA.integrations.cloudflare, ...(parsed.integrations?.cloudflare || {}) },
+            },
+            // Arrays usually don't need deep merge, use parsed if available, else default
+            resources: parsed.resources || INITIAL_DATA.resources,
+            tracks: parsed.tracks || INITIAL_DATA.tracks,
+            articles: parsed.articles || INITIAL_DATA.articles,
+            artists: parsed.artists || INITIAL_DATA.artists,
+            navigation: parsed.navigation || INITIAL_DATA.navigation
+        };
       }
     } catch (e) {
       console.warn('Failed to load site data from localStorage', e);
@@ -174,7 +193,20 @@ const App: React.FC = () => {
                   const cloudData = await res.json();
                   if (cloudData && typeof cloudData === 'object') {
                       console.log("Cloud sync successful (Public Read)");
-                      setSiteData(prev => ({ ...prev, ...cloudData }));
+                      // Do a similar deep merge for cloud data update
+                      setSiteData(prev => ({
+                          ...prev,
+                          ...cloudData,
+                          hero: { ...prev.hero, ...(cloudData.hero || {}) },
+                          contact: { ...prev.contact, ...(cloudData.contact || {}) },
+                          integrations: {
+                             ...prev.integrations,
+                             ...(cloudData.integrations || {}),
+                             aliDrive: { ...prev.integrations.aliDrive, ...(cloudData.integrations?.aliDrive || {}) },
+                             oneDrive: { ...prev.integrations.oneDrive, ...(cloudData.integrations?.oneDrive || {}) },
+                             cloudflare: { ...prev.integrations.cloudflare, ...(cloudData.integrations?.cloudflare || {}) }
+                          }
+                      }));
                   }
               } else {
                    console.warn("Cloud sync skipped (No data or API error):", res.status);

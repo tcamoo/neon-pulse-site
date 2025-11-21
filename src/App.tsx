@@ -97,19 +97,17 @@ const INITIAL_DATA: SiteData = {
           accessCode: 'VES1',
           size: '4.2 GB',
           date: '2025.02.20'
-      },
-      {
-          id: '2',
-          title: 'Exclusive Sample Pack Vol.1',
-          description: '超过 500 个独家设计的 Glitch 和 Bass 采样。',
-          type: 'archive',
-          provider: 'quark',
-          link: '#',
-          accessCode: '8888',
-          size: '850 MB',
-          date: '2025.01.15'
       }
   ],
+  storage: {
+      enabled: false,
+      provider: 'r2',
+      endpoint: '',
+      accessKeyId: '',
+      secretAccessKey: '',
+      bucketName: 'ves-music',
+      publicDomain: 'https://pub-xxx.r2.dev'
+  },
   contact: {
     email: 'booking@echo-music.com',
     phone: '+1 (555) 000-0000',
@@ -125,11 +123,13 @@ const App: React.FC = () => {
       const savedData = localStorage.getItem('ves_site_data');
       if (savedData) {
         const parsed = JSON.parse(savedData);
+        // Deep merge to ensure new fields like storage exist even if local storage is old
         return {
             ...INITIAL_DATA,
             ...parsed,
             hero: { ...INITIAL_DATA.hero, ...(parsed.hero || {}) },
             contact: { ...INITIAL_DATA.contact, ...(parsed.contact || {}) },
+            storage: { ...INITIAL_DATA.storage, ...(parsed.storage || {}) },
             featuredAlbum: { ...INITIAL_DATA.featuredAlbum, ...(parsed.featuredAlbum || {}) },
             resources: parsed.resources || INITIAL_DATA.resources,
             tracks: parsed.tracks || INITIAL_DATA.tracks,
@@ -203,15 +203,11 @@ const App: React.FC = () => {
   const handlePlayTrack = async (track: Track) => {
     // If it's a Netease track, we don't use the global audio element
     if (track.neteaseId) {
-        // For Netease tracks, we might just open the modal details or 
-        // simply ensure the global player stops so they don't overlap.
         if (audioRef.current) {
             audioRef.current.pause();
             setIsPlaying(false);
         }
         setCurrentTrackId(track.id);
-        // Logic to handle Netease playback state is limited due to iframe cross-origin
-        // We just set it as "active" in UI
         return;
     }
 
@@ -258,14 +254,11 @@ const App: React.FC = () => {
             await audioContextRef.current.resume();
         }
         if (analyserRef.current && audioContextRef.current) {
-            // Note: createMediaElementSource often fails with CORS if not handled perfectly on server
-            // Wrapping in try/catch
             try {
                 const source = audioContextRef.current.createMediaElementSource(newAudio);
                 source.connect(analyserRef.current);
             } catch (e) {
-                // Fallback: Audio plays but visualizer might not work
-                console.log("Visualizer connection skipped due to CORS");
+                // CORS issues common with some CDNs
             }
         }
         setAnalyser(analyserRef.current);

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import MusicSection from './components/MusicSection';
-import ArticleSection from './components/TourSection'; // Reusing file but repurposed
+import ArticleSection from './components/TourSection';
 import ContactSection from './components/ContactSection';
 import DownloadSection from './components/DownloadSection';
 import Footer from './components/Footer';
@@ -17,9 +17,8 @@ import type { SiteData, Track } from './types';
 import { Lock, ArrowRight, ShieldAlert } from 'lucide-react';
 
 // Initial Data Configuration
-// Now attempts to read from Cloudflare/Vite Environment Variable VITE_ADMIN_PASSWORD
 const INITIAL_DATA: SiteData = {
-  adminPassword: import.meta.env.VITE_ADMIN_PASSWORD || 'admin', // Default is 'admin' if env var is not set
+  adminPassword: import.meta.env.VITE_ADMIN_PASSWORD || 'admin',
   navigation: [
     { id: 'nav_1', label: '音乐作品', targetId: 'music' },
     { id: 'nav_2', label: '动态现场', targetId: 'live' },
@@ -93,15 +92,6 @@ const INITIAL_DATA: SiteData = {
       excerpt: '涉谷的雨夜，Livehouse 里沸腾的人群，以及那些在后台发生的未曾公开的故事。另外，宣布下一站：首尔。',
       coverUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=2070&auto=format&fit=crop',
       linkedTrackId: '2'
-    },
-    { 
-      id: '3', 
-      title: '新专辑《Neon Dreams》概念解析', 
-      category: '#NEW_RELEASE', 
-      date: '2024.12.25', 
-      excerpt: '这不仅仅是一张专辑，这是一个关于逃离现实、构建内心乌托邦的音频实验。',
-      coverUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=2070&auto=format&fit=crop',
-      linkedTrackId: '3' 
     }
   ],
   artists: [
@@ -115,20 +105,10 @@ const INITIAL_DATA: SiteData = {
           description: '包含专辑中所有鼓点、贝斯和合成器分轨文件，供 Remix 使用。',
           type: 'audio',
           provider: 'aliyun',
-          link: 'https://www.aliyundrive.com/s/example',
+          link: '#',
           accessCode: '8888',
           size: '1.2 GB',
           date: '2025.01.15'
-      },
-      {
-          id: '2',
-          title: 'Live Visuals 4K',
-          description: '东京巡演现场使用的视觉素材包，包含 VJ Loop。',
-          type: 'video',
-          provider: 'quark',
-          link: '#',
-          size: '4.5 GB',
-          date: '2025.02.01'
       }
   ],
   contact: {
@@ -139,24 +119,19 @@ const INITIAL_DATA: SiteData = {
     footerText: 'AUDIO VISUAL EXPERIENCE • DESIGNED FOR THE FUTURE • HIGH FIDELITY STREAMING •'
   },
   integrations: {
-    aliDrive: { enabled: false, accessKey: '', secretKey: '', bucket: '', endpoint: '' },
-    oneDrive: { enabled: false, accessKey: '', secretKey: '', bucket: '', endpoint: '' },
+    aliDrive: { enabled: false, clientId: '', secretKey: '', refreshToken: '', publicDomain: '' },
+    oneDrive: { enabled: false, clientId: '', secretKey: '', refreshToken: '', publicDomain: '' },
     cloudflare: { enabled: false, accessKey: '', secretKey: '', bucket: '', endpoint: '' }
   }
 };
 
 const App: React.FC = () => {
-  // Initialize state from localStorage first (fastest), then try Cloud sync
-  // Deep merge logic to ensure new data structures (like integrations/resources) persist even if local storage has old schema
   const [siteData, setSiteData] = useState<SiteData>(() => {
     try {
       const savedData = localStorage.getItem('ves_site_data');
       if (savedData) {
         const parsed = JSON.parse(savedData);
-        // Helper to safely deep merge integrations to avoid "undefined" errors if old data is missing keys
-        const defaultIntegrations = INITIAL_DATA.integrations;
-        const parsedIntegrations = parsed.integrations || {};
-        
+        // Robust Deep Merge to ensure missing keys don't crash the app
         return {
             ...INITIAL_DATA,
             ...parsed,
@@ -164,11 +139,10 @@ const App: React.FC = () => {
             contact: { ...INITIAL_DATA.contact, ...(parsed.contact || {}) },
             featuredAlbum: { ...INITIAL_DATA.featuredAlbum, ...(parsed.featuredAlbum || {}) },
             integrations: {
-                aliDrive: { ...defaultIntegrations.aliDrive, ...(parsedIntegrations.aliDrive || {}) },
-                oneDrive: { ...defaultIntegrations.oneDrive, ...(parsedIntegrations.oneDrive || {}) },
-                cloudflare: { ...defaultIntegrations.cloudflare, ...(parsedIntegrations.cloudflare || {}) },
+                aliDrive: { ...INITIAL_DATA.integrations.aliDrive, ...(parsed.integrations?.aliDrive || {}) },
+                oneDrive: { ...INITIAL_DATA.integrations.oneDrive, ...(parsed.integrations?.oneDrive || {}) },
+                cloudflare: { ...INITIAL_DATA.integrations.cloudflare, ...(parsed.integrations?.cloudflare || {}) },
             },
-            // Arrays usually don't need deep merge, use parsed if available, else default
             resources: parsed.resources || INITIAL_DATA.resources,
             tracks: parsed.tracks || INITIAL_DATA.tracks,
             articles: parsed.articles || INITIAL_DATA.articles,
@@ -182,43 +156,6 @@ const App: React.FC = () => {
     return INITIAL_DATA;
   });
 
-  // --- Cloud Synchronization Logic (Native Pages Functions) ---
-  useEffect(() => {
-      const fetchData = async () => {
-          try {
-              const res = await fetch('/api/sync', { method: 'GET' });
-              
-              if (res.ok) {
-                  const cloudData = await res.json();
-                  if (cloudData && typeof cloudData === 'object') {
-                      console.log("Cloud sync successful");
-                      setSiteData(prev => {
-                          const defaultIntegrations = INITIAL_DATA.integrations;
-                          const cloudIntegrations = cloudData.integrations || {};
-                          
-                          return {
-                            ...prev,
-                            ...cloudData,
-                            hero: { ...prev.hero, ...(cloudData.hero || {}) },
-                            contact: { ...prev.contact, ...(cloudData.contact || {}) },
-                            integrations: {
-                                aliDrive: { ...defaultIntegrations.aliDrive, ...(prev.integrations.aliDrive), ...(cloudIntegrations.aliDrive || {}) },
-                                oneDrive: { ...defaultIntegrations.oneDrive, ...(prev.integrations.oneDrive), ...(cloudIntegrations.oneDrive || {}) },
-                                cloudflare: { ...defaultIntegrations.cloudflare, ...(prev.integrations.cloudflare), ...(cloudIntegrations.cloudflare || {}) }
-                            }
-                          };
-                      });
-                  }
-              }
-          } catch (err) {
-              console.error("Cloud sync connection error:", err);
-          }
-      };
-
-      fetchData();
-  }, []);
-
-  // Save to localStorage whenever siteData changes
   useEffect(() => {
     try {
       localStorage.setItem('ves_site_data', JSON.stringify(siteData));
@@ -227,7 +164,7 @@ const App: React.FC = () => {
     }
   }, [siteData]);
   
-  // Admin Logic
+  // Admin & Auth State
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
@@ -242,9 +179,7 @@ const App: React.FC = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   
-  // Track Detail Modal Logic
   const [selectedDetailTrack, setSelectedDetailTrack] = useState<Track | null>(null);
-  // Global Player visibility (auto-show when playing)
   const [showGlobalPlayer, setShowGlobalPlayer] = useState(false);
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -278,7 +213,6 @@ const App: React.FC = () => {
       }
   };
 
-  // --- NEW: Robust Audio Handling ---
   const handlePlayTrack = async (track: Track) => {
     // 1. Toggle if same track
     if (currentTrackId === track.id && audioRef.current) {
@@ -299,57 +233,39 @@ const App: React.FC = () => {
 
     // 3. Setup New Audio Element
     const newAudio = new Audio();
-    
-    // Netease and some external streams block CORS
-    const isRestricted = track.sourceType === 'netease' || (track.audioUrl && track.audioUrl.includes('music.163.com'));
-
-    if (!isRestricted) {
-        newAudio.crossOrigin = "anonymous";
-    } else {
-        newAudio.removeAttribute('crossOrigin');
-    }
-    
+    newAudio.crossOrigin = "anonymous";
     newAudio.src = track.audioUrl || '';
 
-    // Bind Events
     newAudio.addEventListener('timeupdate', () => setCurrentTime(newAudio.currentTime));
     newAudio.addEventListener('loadedmetadata', () => setDuration(newAudio.duration));
     newAudio.addEventListener('ended', () => setIsPlaying(false));
     newAudio.addEventListener('play', () => setIsPlaying(true));
     newAudio.addEventListener('pause', () => setIsPlaying(false));
     newAudio.addEventListener('error', (e) => {
-        const target = e.target as HTMLAudioElement;
-        if (target.error && target.error.code !== 0) {
-             console.error("Audio playback error:", target.error);
-        }
+        console.error("Audio playback error:", (e.target as HTMLAudioElement).error);
     });
 
-    // Update Ref
     audioRef.current = newAudio;
 
-    // 4. Connect to Visualizer (Only if NOT restricted)
-    if (!isRestricted) {
-        try {
-            if (!audioContextRef.current) {
-                const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-                audioContextRef.current = new AudioContextClass();
-                analyserRef.current = audioContextRef.current.createAnalyser();
-                analyserRef.current.fftSize = 1024;
-                analyserRef.current.connect(audioContextRef.current.destination);
-            }
-            if (audioContextRef.current.state === 'suspended') {
-                await audioContextRef.current.resume();
-            }
-            if (analyserRef.current && audioContextRef.current) {
-                 const source = audioContextRef.current.createMediaElementSource(newAudio);
-                 source.connect(analyserRef.current);
-            }
-            setAnalyser(analyserRef.current);
-        } catch (err) {
-            console.warn("Visualizer setup failed (likely CORS), falling back to simulated visuals.", err);
-            setAnalyser(null);
+    // 4. Connect to Visualizer
+    try {
+        if (!audioContextRef.current) {
+            const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+            audioContextRef.current = new AudioContextClass();
+            analyserRef.current = audioContextRef.current.createAnalyser();
+            analyserRef.current.fftSize = 1024;
+            analyserRef.current.connect(audioContextRef.current.destination);
         }
-    } else {
+        if (audioContextRef.current.state === 'suspended') {
+            await audioContextRef.current.resume();
+        }
+        if (analyserRef.current && audioContextRef.current) {
+                const source = audioContextRef.current.createMediaElementSource(newAudio);
+                source.connect(analyserRef.current);
+        }
+        setAnalyser(analyserRef.current);
+    } catch (err) {
+        console.warn("Visualizer setup failed (CORS likely).", err);
         setAnalyser(null);
     }
 
@@ -361,10 +277,7 @@ const App: React.FC = () => {
                 setCurrentTrackId(track.id);
                 setShowGlobalPlayer(true);
                 setIsPlaying(true);
-            }).catch(e => {
-                if (e.name === 'AbortError') return;
-                console.error("Playback start failed:", e);
-            });
+            }).catch(e => console.error("Playback start failed:", e));
         }
     } catch (e) {
         console.error("Synchronous playback error", e);
@@ -408,11 +321,8 @@ const App: React.FC = () => {
 
   return (
     <div className={`bg-void min-h-screen text-gray-100 selection:bg-hot-pink selection:text-white font-sans relative pb-20 ${isSystemCursor ? 'cursor-auto' : 'cursor-none'}`}>
-      
-      {/* Grain Overlay */}
       <div className="bg-grain pointer-events-none"></div>
 
-      {/* Custom Cursor */}
       {!isSystemCursor && (
         <>
           <motion.div
@@ -432,7 +342,6 @@ const App: React.FC = () => {
         {isLoading && <Loader />}
       </AnimatePresence>
 
-      {/* Password Modal */}
       <AnimatePresence>
           {showPasswordModal && (
               <motion.div 
@@ -448,31 +357,15 @@ const App: React.FC = () => {
                     transition={loginError ? { type: "spring", stiffness: 300, damping: 10 } : { duration: 0.3 }}
                     className="bg-black border border-white/10 rounded-2xl p-8 w-full max-w-md relative overflow-hidden shadow-[0_0_50px_rgba(255,0,128,0.2)]"
                   >
-                       <button 
-                            onClick={() => setShowPasswordModal(false)} 
-                            className="absolute top-4 right-4 text-slate-500 hover:text-white"
-                       >
-                           <ShieldAlert size={20} />
-                       </button>
-                       
+                       <button onClick={() => setShowPasswordModal(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white"><ShieldAlert size={20} /></button>
                        <div className="flex flex-col items-center gap-4 mb-8">
-                           <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-electric-cyan border border-electric-cyan/30">
-                               <Lock size={32} />
-                           </div>
+                           <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center text-electric-cyan border border-electric-cyan/30"><Lock size={32} /></div>
                            <h2 className="font-display font-bold text-2xl text-white tracking-wider">SYSTEM LOCKED</h2>
                            <p className="text-slate-500 text-xs font-mono uppercase">Enter secure access token</p>
                        </div>
-
                        <form onSubmit={handleLogin} className="space-y-4">
                            <div className="relative">
-                               <input 
-                                    type="password" 
-                                    autoFocus
-                                    value={passwordInput}
-                                    onChange={(e) => setPasswordInput(e.target.value)}
-                                    className={`w-full bg-white/5 border ${loginError ? 'border-red-500 text-red-500' : 'border-white/10 text-white'} rounded-xl px-4 py-3 outline-none focus:border-electric-cyan transition-colors text-center font-mono tracking-[0.5em] text-lg placeholder:text-slate-700`}
-                                    placeholder="••••••"
-                               />
+                               <input type="password" autoFocus value={passwordInput} onChange={(e) => setPasswordInput(e.target.value)} className={`w-full bg-white/5 border ${loginError ? 'border-red-500 text-red-500' : 'border-white/10 text-white'} rounded-xl px-4 py-3 outline-none focus:border-electric-cyan transition-colors text-center font-mono tracking-[0.5em] text-lg placeholder:text-slate-700`} placeholder="••••••"/>
                            </div>
                            {loginError && <p className="text-center text-red-500 text-xs font-mono animate-pulse">ACCESS DENIED: INVALID TOKEN</p>}
                            <button type="submit" className="w-full bg-hot-pink hover:bg-white hover:text-midnight text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm shadow-lg shadow-hot-pink/20">
@@ -498,7 +391,6 @@ const App: React.FC = () => {
         )}
       </AnimatePresence>
 
-      {/* Global Sticky Player */}
       <AnimatePresence>
         {showGlobalPlayer && currentTrack && (
             <GlobalPlayer 
@@ -524,19 +416,10 @@ const App: React.FC = () => {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.8 }}
         >
-          <Navbar 
-            isAdmin={isAuthenticated} 
-            toggleAdmin={handleAdminToggle} 
-            navItems={siteData.navigation}
-          />
-          
-          {/* Pass analyser and playing state to Visualizer */}
+          <Navbar isAdmin={isAuthenticated} toggleAdmin={handleAdminToggle} navItems={siteData.navigation} />
           <Visualizer analyser={analyser} isPlaying={isPlaying} />
-
           <main className="relative w-full">
-            
             <Hero data={siteData.hero} />
-            
             <section id="music" className="relative z-20">
                 <MusicSection 
                     tracks={siteData.tracks} 
@@ -547,7 +430,6 @@ const App: React.FC = () => {
                     onViewDetails={(track) => setSelectedDetailTrack(track)}
                 />
             </section>
-            
             <ArticleSection 
               articles={siteData.articles} 
               onPlayLinkedTrack={(trackId) => {
@@ -557,18 +439,13 @@ const App: React.FC = () => {
               currentTrackId={currentTrackId}
               isPlaying={isPlaying}
             />
-            
-            {/* NEW: Download Section */}
             <DownloadSection resources={siteData.resources || []} />
-            
             <ContactSection contactData={siteData.contact} />
-            
             <Footer contactData={siteData.contact} />
           </main>
         </motion.div>
       )}
       
-      {/* Admin Panel Overlay - Fullscreen Fixed */}
       <AnimatePresence>
         {isAdminOpen && (
             <div className="fixed inset-0 z-[60] cursor-auto">

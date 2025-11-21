@@ -5,6 +5,7 @@ import Hero from './components/Hero';
 import MusicSection from './components/MusicSection';
 import ArticleSection from './components/TourSection'; // Reusing file but repurposed
 import ContactSection from './components/ContactSection';
+import DownloadSection from './components/DownloadSection';
 import Footer from './components/Footer';
 import Visualizer from './components/Visualizer';
 import AdminPanel from './components/AdminPanel';
@@ -22,7 +23,8 @@ const INITIAL_DATA: SiteData = {
   navigation: [
     { id: 'nav_1', label: '音乐作品', targetId: 'music' },
     { id: 'nav_2', label: '动态现场', targetId: 'live' },
-    { id: 'nav_3', label: '联系合作', targetId: 'contact' },
+    { id: 'nav_3', label: '资源下载', targetId: 'downloads' },
+    { id: 'nav_4', label: '联系合作', targetId: 'contact' },
   ],
   hero: {
     titleLine1: 'SONIC',
@@ -105,6 +107,29 @@ const INITIAL_DATA: SiteData = {
   artists: [
     { id: '1', name: 'VES', role: 'Main Vocal / Producer', avatarUrl: 'https://images.unsplash.com/photo-1529518969858-8baa65152fc8?q=80&w=2070&auto=format&fit=crop', status: 'active' },
     { id: '2', name: 'NEON-X', role: 'Synth / Visuals', avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=1780&auto=format&fit=crop', status: 'active' }
+  ],
+  resources: [
+      {
+          id: '1',
+          title: 'Neon Dreams - Stems Pack',
+          description: '包含专辑中所有鼓点、贝斯和合成器分轨文件，供 Remix 使用。',
+          type: 'audio',
+          provider: 'aliyun',
+          link: 'https://www.aliyundrive.com/s/example',
+          accessCode: '8888',
+          size: '1.2 GB',
+          date: '2025.01.15'
+      },
+      {
+          id: '2',
+          title: 'Live Visuals 4K',
+          description: '东京巡演现场使用的视觉素材包，包含 VJ Loop。',
+          type: 'video',
+          provider: 'quark',
+          link: '#',
+          size: '4.5 GB',
+          date: '2025.02.01'
+      }
   ],
   contact: {
     email: 'booking@echo-music.com',
@@ -514,7 +539,6 @@ const App: React.FC = () => {
                 />
             </section>
             
-            {/* Now renders ArticleSection but passing tracks for linking */}
             <ArticleSection 
               articles={siteData.articles} 
               onPlayLinkedTrack={(trackId) => {
@@ -524,6 +548,9 @@ const App: React.FC = () => {
               currentTrackId={currentTrackId}
               isPlaying={isPlaying}
             />
+            
+            {/* NEW: Download Section */}
+            <DownloadSection resources={siteData.resources || []} />
             
             <ContactSection contactData={siteData.contact} />
             

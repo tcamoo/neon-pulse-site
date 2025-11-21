@@ -9,11 +9,9 @@ export interface Track {
   duration: string;
   coverUrl: string;
   plays: number;
-  audioUrl?: string;
+  audioUrl?: string; // For native/uploaded audio
+  neteaseId?: string; // For Netease Cloud Music iframe
   lyrics?: string;
-  // New fields for external sources
-  sourceType?: 'native' | 'netease';
-  externalId?: string;
 }
 
 export interface Article {
@@ -39,8 +37,8 @@ export interface Resource {
   id: string;
   title: string;
   description: string;
-  type: 'audio' | 'video' | 'project' | 'other';
-  provider: 'aliyun' | 'baidu' | 'quark' | 'google';
+  type: 'audio' | 'video' | 'project' | 'archive' | 'other';
+  provider: 'aliyun' | 'baidu' | 'quark' | 'google' | 'other';
   link: string;
   accessCode?: string;
   size?: string;
@@ -63,27 +61,6 @@ export interface FeaturedAlbum {
   coverUrl: string;
 }
 
-export interface CloudConfig {
-  enabled: boolean;
-  // S3 Compatible (Aliyun OSS, R2)
-  accessKey?: string;
-  secretKey?: string;
-  bucket?: string;
-  endpoint?: string;
-  // Public Domain for link generation
-  publicDomain?: string;
-  // OAuth / Token Based (OneDrive, Aliyun Drive Personal)
-  clientId?: string;
-  refreshToken?: string;
-  authType?: 's3' | 'oauth'; 
-}
-
-export interface CloudIntegrations {
-  aliDrive: CloudConfig;
-  oneDrive: CloudConfig;
-  cloudflare: CloudConfig;
-}
-
 export interface NavItem {
   id: string;
   label: string;
@@ -99,18 +76,15 @@ export interface ContactConfig {
 }
 
 export interface SiteData {
-  // Security
   adminPassword?: string; 
-  
   navigation: NavItem[];
   hero: HeroData;
   featuredAlbum: FeaturedAlbum;
   tracks: Track[];
   articles: Article[];
   artists: Artist[];
-  resources: Resource[]; // New Resources Section
+  resources: Resource[];
   contact: ContactConfig;
-  integrations: CloudIntegrations;
 }
 
 export interface SocialLink {

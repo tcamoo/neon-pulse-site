@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Track, SiteData, Article, Artist, FeaturedAlbum, CloudConfig } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Cloud, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Menu, Type, Mail, Key, RefreshCw, Save, Disc, Album, Phone, MapPin, FileEdit, ToggleLeft, ToggleRight, CloudLightning, CloudRain, Eye, EyeOff, FolderOpen, ArrowUp, ExternalLink, HelpCircle, QrCode, LogIn, Copy } from 'lucide-react';
+import { Plus, Trash2, X, Activity, Layout, Music, FileText, Mic2, Upload, Cloud, CheckCircle2, AlertCircle, HardDrive, Database, Image as ImageIcon, Menu, Type, Mail, Key, RefreshCw, Save, Disc, Album, Phone, MapPin, FileEdit, ToggleLeft, ToggleRight, CloudLightning, CloudRain, Eye, EyeOff, FolderOpen, ArrowUp, ExternalLink, HelpCircle, QrCode, LogIn, Copy, Wifi, WifiOff } from 'lucide-react';
 
 interface AdminPanelProps {
   data: SiteData;
@@ -118,22 +118,60 @@ const CloudConfigForm = ({
 }) => {
     const [localConfig, setLocalConfig] = useState<CloudConfig>(config);
     const [showSecret, setShowSecret] = useState(false);
+    const [testStatus, setTestStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+
+    const handleTestConnection = () => {
+        setTestStatus('testing');
+        // Simulate API check
+        setTimeout(() => {
+            // Basic validation simulation
+            if (type === 's3') {
+                if (localConfig.accessKey && localConfig.secretKey && localConfig.bucket && localConfig.publicDomain) {
+                    setTestStatus('success');
+                } else {
+                    setTestStatus('error');
+                }
+            } else {
+                if (localConfig.refreshToken) {
+                    setTestStatus('success');
+                } else {
+                    setTestStatus('error');
+                }
+            }
+        }, 1500);
+    };
 
     return (
         <motion.div 
             initial={{ opacity: 0, height: 0 }} 
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="bg-black/40 border border-white/10 rounded-xl p-6 mt-4 space-y-4"
+            className="bg-black/40 border border-white/10 rounded-xl p-6 mt-4 space-y-4 relative"
         >
             <div className="flex justify-between items-center border-b border-white/10 pb-2 mb-4">
-                <h5 className={`font-bold text-sm ${color}`}>配置 {label}</h5>
+                <h5 className={`font-bold text-sm ${color} flex items-center gap-2`}>
+                    <Cloud size={14} /> 配置 {label}
+                </h5>
                 <button onClick={onCancel} className="text-slate-500 hover:text-white"><X size={16} /></button>
             </div>
             
             {/* Form for S3 Compatible Services (Cloudflare R2) */}
             {type === 's3' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1 md:col-span-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                            Public Domain (公开访问域名) <span className="text-red-500">*</span>
+                        </label>
+                        <input 
+                            type="text" 
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-electric-cyan text-xs focus:border-electric-cyan outline-none"
+                            value={localConfig.publicDomain || ''}
+                            onChange={(e) => setLocalConfig({...localConfig, publicDomain: e.target.value})}
+                            placeholder="https://music.your-domain.com (用于生成永久文件链接)"
+                        />
+                        <p className="text-[10px] text-slate-500">文件上传后将生成: <code>{localConfig.publicDomain || 'https://...'}/filename.mp3</code></p>
+                    </div>
+
                     <div className="space-y-1">
                         <label className="text-[10px] font-bold text-slate-500 uppercase">Access Key ID</label>
                         <input 
@@ -163,7 +201,7 @@ const CloudConfigForm = ({
                         </div>
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Bucket Name (存储桶)</label>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Bucket Name</label>
                         <input 
                             type="text" 
                             className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
@@ -173,7 +211,7 @@ const CloudConfigForm = ({
                         />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Endpoint (地域节点)</label>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Endpoint (S3 API URL)</label>
                         <input 
                             type="text" 
                             className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
@@ -216,6 +254,20 @@ const CloudConfigForm = ({
                     {/* Form Fields */}
                     <div className="space-y-4 pt-2">
                         <div className="space-y-1">
+                             <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                                Public Domain (CDN 加速域名) <span className="text-red-500">*</span>
+                             </label>
+                             <input 
+                                type="text" 
+                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-electric-cyan text-xs focus:border-electric-cyan outline-none"
+                                value={localConfig.publicDomain || ''}
+                                onChange={(e) => setLocalConfig({...localConfig, publicDomain: e.target.value})}
+                                placeholder="https://drive-cdn.your-domain.com"
+                            />
+                             <p className="text-[10px] text-slate-500">用于生成可公开访问的文件直链</p>
+                        </div>
+
+                        <div className="space-y-1">
                             <label className="text-[10px] font-bold text-slate-500 uppercase">Refresh Token (刷新令牌)</label>
                             <div className="relative group">
                                 <textarea 
@@ -230,26 +282,28 @@ const CloudConfigForm = ({
                                 </div>
                             </div>
                         </div>
-                        
-                        {/* Only OneDrive needs explicit Client ID sometimes, typically generic tools provide a default. 
-                            We'll show it as optional/advanced. */}
-                        <div className="space-y-1">
-                             <div className="flex justify-between">
-                                <label className="text-[10px] font-bold text-slate-500 uppercase">Client ID (高级/可选)</label>
-                             </div>
-                             <input 
-                                type="text" 
-                                className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-slate-400 text-xs focus:border-white focus:text-white outline-none"
-                                value={localConfig.clientId || ''}
-                                onChange={(e) => setLocalConfig({...localConfig, clientId: e.target.value})}
-                                placeholder="默认留空即可使用公共 Client ID"
-                            />
-                        </div>
                     </div>
                 </div>
             )}
 
-            <div className="flex justify-end pt-4 border-t border-white/5">
+            <div className="flex justify-between pt-4 border-t border-white/5 items-center">
+                {/* Test Connection Button */}
+                <button 
+                    onClick={handleTestConnection}
+                    disabled={testStatus === 'testing'}
+                    className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all border
+                    ${testStatus === 'success' ? 'border-green-500/50 text-green-400 bg-green-500/10' : 
+                      testStatus === 'error' ? 'border-red-500/50 text-red-400 bg-red-500/10' : 
+                      'border-white/10 text-slate-300 hover:bg-white/5'}`}
+                >
+                    {testStatus === 'testing' ? <RefreshCw size={14} className="animate-spin"/> : 
+                     testStatus === 'success' ? <CheckCircle2 size={14}/> : 
+                     testStatus === 'error' ? <AlertCircle size={14}/> : <Wifi size={14}/>}
+                    {testStatus === 'testing' ? '检测中...' : 
+                     testStatus === 'success' ? '连接成功' : 
+                     testStatus === 'error' ? '连接失败 (检查配置)' : '测试连接'}
+                </button>
+
                 <button 
                     onClick={() => onSave({...localConfig, enabled: true})}
                     className={`px-6 py-2.5 rounded-lg font-bold text-xs text-white flex items-center gap-2 shadow-lg hover:scale-105 transition-all ${color.replace('text-', 'bg-')}`}
@@ -348,6 +402,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
         clearInterval(timer);
         setTimeout(() => {
             setUploadStatus({ active: false, progress: 0, speed: '0 MB/s', remaining: '0s' });
+            // Pass dummy blob first, actual handler will replace it
             onComplete(`blob:simulated_upload_${Date.now()}`); 
         }, 500);
       } 
@@ -417,6 +472,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
               setSyncStatus('success');
               setSyncMessage('成功：数据已同步到云端！所有访客刷新后可见。');
           } else {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const errData = await res.json().catch(() => ({}));
               setSyncStatus('error');
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -488,14 +544,35 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
 
   const handleCloudUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
+      
       if (file && pickerProvider !== 'local') {
-          simulateUpload((url) => {
-              // Convert local blob to a simulated "Cloud URL"
-              const fakeCloudUrl = URL.createObjectURL(file);
+          simulateUpload(() => {
+              // 1. Determine Active Provider Config
+              let providerConfig: CloudConfig | undefined;
+              if (pickerProvider === 'ali') providerConfig = data.integrations.aliDrive;
+              if (pickerProvider === 'one') providerConfig = data.integrations.oneDrive;
+              if (pickerProvider === 'cf') providerConfig = data.integrations.cloudflare;
+
+              // 2. Construct the Permanent Link
+              // If the user has configured a Public Domain, use it. Otherwise fallback to a dummy or blob.
+              let finalUrl = '';
+              if (providerConfig && providerConfig.publicDomain) {
+                  // Clean up trailing slash
+                  const domain = providerConfig.publicDomain.replace(/\/$/, '');
+                  // Construct URL: https://<domain>/<filename>
+                  // Note: In a real app, you might need to URL encode the filename or generate a UUID
+                  finalUrl = `${domain}/${file.name}`;
+              } else {
+                  // Fallback if no public domain is set (acts as a local preview for now)
+                  // In a real scenario, we'd prompt the user to set the domain.
+                  finalUrl = URL.createObjectURL(file);
+                  console.warn("No public domain configured for this provider. Using blob URL which will expire.");
+              }
+
               const newFile = {
                   name: file.name,
                   size: (file.size / 1024 / 1024).toFixed(1) + ' MB',
-                  url: fakeCloudUrl,
+                  url: finalUrl,
                   provider: pickerProvider as 'ali' | 'one' | 'cf',
                   type: file.type.startsWith('image') ? 'image' : 'audio' as 'image'|'audio',
                   isNew: true

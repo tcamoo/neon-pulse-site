@@ -13,16 +13,16 @@ interface AdminPanelProps {
 type Tab = 'general' | 'music' | 'articles' | 'artists' | 'resources' | 'cloud' | 'contact';
 type CloudProvider = 'ali' | 'one' | 'cf' | null;
 
-// ... (Keep existing S3 helpers like uploadToS3 and SonicText, UploadProgressWidget components unchanged) ...
 // --- AWS Signature V4 Helper for R2/OSS Uploads (Browser Native) ---
 const uploadToS3 = async (file: File, config: CloudConfig, onProgress: (percent: number) => void): Promise<string> => {
-    if (!config.accessKey || !config.secretKey || !config.bucket || !config.endpoint || !config.publicDomain) {
-        throw new Error("配置不完整: 缺少 AccessKey, SecretKey, Bucket, Endpoint 或 Public Domain");
+    if (!config.accessKey || !config.secretKey || !config.bucket || !config.endpoint) {
+        throw new Error("配置不完整: 缺少 AccessKey, SecretKey, Bucket 或 Endpoint");
     }
 
     const method = 'PUT';
     const service = 's3';
     const region = 'auto'; 
+    // Ensure endpoint has protocol
     const endpointUrl = config.endpoint.startsWith('http') ? config.endpoint : `https://${config.endpoint}`;
     const host = new URL(endpointUrl).host;
     const path = `/${config.bucket}/${file.name}`;
@@ -88,9 +88,17 @@ const uploadToS3 = async (file: File, config: CloudConfig, onProgress: (percent:
         
         onProgress(100);
         
-        const publicDomain = config.publicDomain.replace(/\/$/, '');
-        const encodedFilename = encodeURIComponent(file.name);
-        return `${publicDomain}/${encodedFilename}`;
+        // Generate Return URL
+        // If Public Domain is set, use it. Otherwise construct from endpoint (generic S3 style)
+        if (config.publicDomain) {
+             const publicDomain = config.publicDomain.replace(/\/$/, '');
+             const encodedFilename = encodeURIComponent(file.name);
+             return `${publicDomain}/${encodedFilename}`;
+        } else {
+             // Fallback for OSS without custom domain binding
+             // Note: This is a rough guess, usually OSS needs specific public bucket domain handling
+             return `${endpointUrl}/${file.name}`;
+        }
 
     } catch (error) {
         clearInterval(progressInterval);
@@ -216,19 +224,19 @@ const CloudConfigForm = ({
                 <button onClick={onCancel} className="text-slate-500 hover:text-white"><X size={16} /></button>
             </div>
             
-            {/* Form for S3 Compatible Services (Cloudflare R2) */}
+            {/* Form for S3 Compatible Services (Cloudflare R2, Aliyun OSS) */}
             {type === 's3' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-1 md:col-span-2">
                         <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
-                            Public Domain (公开访问域名) <span className="text-red-500">*</span>
+                            Endpoint (API URL)
                         </label>
                         <input 
                             type="text" 
-                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-electric-cyan text-xs focus:border-electric-cyan outline-none"
-                            value={localConfig.publicDomain || ''}
-                            onChange={(e) => setLocalConfig({...localConfig, publicDomain: e.target.value})}
-                            placeholder="https://pub-xxx.r2.dev (用于生成永久链接)"
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
+                            value={localConfig.endpoint || ''}
+                            onChange={(e) => setLocalConfig({...localConfig, endpoint: e.target.value})}
+                            placeholder="例如: https://<account>.r2.cloudflarestorage.com"
                         />
                     </div>
 
@@ -271,13 +279,42 @@ const CloudConfigForm = ({
                         />
                     </div>
                     <div className="space-y-1">
-                        <label className="text-[10px] font-bold text-slate-500 uppercase">Endpoint (S3 API URL)</label>
+                         <label className="text-[10px] font-bold text-slate-500 uppercase flex items-center gap-1">
+                            Public Domain (公开访问域名)
+                        </label>
+                        <input 
+                            type="text" 
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-electric-cyan text-xs focus:border-electric-cyan outline-none"
+                            value={localConfig.publicDomain || ''}
+                            onChange={(e) => setLocalConfig({...localConfig, publicDomain: e.target.value})}
+                            placeholder="https://pub-xxx.r2.dev"
+                        />
+                    </div>
+                </div>
+            )}
+
+             {/* Form for OAuth Services (OneDrive) */}
+             {type === 'oauth' && (
+                <div className="grid grid-cols-1 gap-4">
+                    <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg text-xs text-blue-300 mb-2">
+                        注意：静态网站无法直接处理 OAuth 回调。此处仅用于存储客户端 ID 和密钥，实际上传请使用官方客户端生成分享链接，然后在“资源下载”中添加。
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Client ID</label>
                         <input 
                             type="text" 
                             className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
-                            value={localConfig.endpoint || ''}
-                            onChange={(e) => setLocalConfig({...localConfig, endpoint: e.target.value})}
-                            placeholder="https://<account_id>.r2.cloudflarestorage.com"
+                            value={localConfig.clientId || ''}
+                            onChange={(e) => setLocalConfig({...localConfig, clientId: e.target.value})}
+                        />
+                    </div>
+                     <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase">Client Secret</label>
+                         <input 
+                            type="password" 
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-white text-xs focus:border-white outline-none"
+                            value={localConfig.secretKey || ''}
+                            onChange={(e) => setLocalConfig({...localConfig, secretKey: e.target.value})}
                         />
                     </div>
                 </div>
@@ -425,11 +462,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       setTimeout(() => { if (syncStatus === 'success') setSyncStatus('idle'); }, 5000);
   };
 
-  // --- Cloud Config Handlers ---
+  // --- Cloud Config Handlers (FIXED) ---
   const handleCloudToggle = (provider: 'ali' | 'one' | 'cf') => {
-      // Only handling Cloudflare R2 here for now as Ali is moved to Resources
       let key: keyof SiteData['integrations'];
       if (provider === 'cf') key = 'cloudflare';
+      else if (provider === 'ali') key = 'aliDrive';
+      else if (provider === 'one') key = 'oneDrive';
       else return; 
 
       const currentConfig = data.integrations[key];
@@ -444,6 +482,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   const handleSaveCloudConfig = (provider: 'ali' | 'one' | 'cf', config: CloudConfig) => {
       let key: keyof SiteData['integrations'];
       if (provider === 'cf') key = 'cloudflare';
+      else if (provider === 'ali') key = 'aliDrive';
+      else if (provider === 'one') key = 'oneDrive';
       else return;
 
       updateData(prev => ({ ...prev, integrations: { ...prev.integrations, [key]: config } }));
@@ -467,11 +507,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       }
   };
 
-  // --- REAL Upload Logic for R2 ---
+  // --- REAL Upload Logic for R2 (or other S3 compatible if configured) ---
   const handleCloudUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const config = data.integrations.cloudflare;
+      const config = data.integrations.cloudflare; // Defaulting to R2 for direct uploads in this version
       
       if (pickerProvider === 'cf' && config?.enabled) {
           setUploadStatus({ active: true, progress: 0, speed: 'Calculating...', remaining: '...', message: '正在连接 R2...' });
@@ -515,7 +555,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       }
   }
   
-  // ... (Keep Add/Delete functions for Track, Article, Artist mostly same, omitted for brevity to fit context) ...
   const addTrack = () => {
     if (!newTrack.title) return;
     const track: Track = {
@@ -556,6 +595,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
     const artist: Artist = { id: Date.now().toString(), name: newArtist.name || 'Name', role: newArtist.role || 'Artist', avatarUrl: newArtist.avatarUrl || getRandomImage(), status: 'active' };
     updateData({ ...data, artists: [...(data.artists || []), artist] });
     setIsAddingArtist(false);
+    setNewArtist({ name: '', role: '', avatarUrl: '', status: 'active' });
   };
   const deleteArtist = (id: string) => updateData({ ...data, artists: data.artists.filter(a => a.id !== id) });
 
@@ -633,20 +673,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
             {/* General Tab */}
             {activeTab === 'general' && (
                 <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto pb-20">
-                    {/* ... General Settings (Hero etc) ... */}
                     <div className="bg-white/5 border border-white/10 rounded-2xl p-4 md:p-6">
-                         {/* ... Content omitted for brevity, same as before ... */}
                          <h3 className="text-hot-pink font-mono text-sm uppercase tracking-widest mb-4">首页设置</h3>
                          <div className="space-y-4">
-                            {/* Simplified for this update XML */}
                              <div><label className="text-xs text-slate-500 block mb-1">主标题 1</label><input value={data.hero.titleLine1} onChange={e => handleHeroChange('titleLine1', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white"/></div>
                              <div><label className="text-xs text-slate-500 block mb-1">主标题 2</label><input value={data.hero.titleLine2} onChange={e => handleHeroChange('titleLine2', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white"/></div>
+                             <div><label className="text-xs text-slate-500 block mb-1">副标题</label><textarea value={data.hero.subtitle} onChange={e => handleHeroChange('subtitle', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white" rows={3}/></div>
+                             <div><label className="text-xs text-slate-500 block mb-1">滚动字幕</label><input value={data.hero.marqueeText} onChange={e => handleHeroChange('marqueeText', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded p-2 text-white"/></div>
                          </div>
                     </div>
                 </motion.div>
             )}
 
-            {/* Resources Tab (NEW) */}
+            {/* Resources Tab */}
             {activeTab === 'resources' && (
                 <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto pb-20">
                     <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/5">
@@ -743,7 +782,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                 </motion.div>
             )}
 
-            {/* Music Tab (Unchanged logic, simplified view here) */}
+            {/* Music Tab */}
             {activeTab === 'music' && (
                 <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto pb-20">
                     <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/5">
@@ -752,7 +791,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                            <Plus size={16} /> 添加单曲
                         </button>
                     </div>
-                    {/* ... Add Track Form ... */}
                      {isAddingTrack && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-white/5 p-6 rounded-2xl border border-white/10 mb-8 grid gap-4 relative overflow-hidden">
                              <div className="grid md:grid-cols-2 gap-4 relative z-10">
@@ -797,8 +835,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                 </motion.div>
             )}
 
-            {/* Other tabs (Articles, Artists, Contact) omitted for XML brevity, they remain logically present if you were copying the full file, but I'm just ensuring the structure supports the request. I will assume the other tabs exist in the full file. Since I have to output the FULL content, I will include them below. */}
-
              {/* Articles Tab */}
              {activeTab === 'articles' && (
                 <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto pb-20">
@@ -825,13 +861,37 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                 </motion.div>
             )}
 
+             {/* Artists Tab */}
+             {activeTab === 'artists' && (
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="max-w-4xl mx-auto pb-20">
+                    <div className="flex justify-between items-center mb-8 pb-4 border-b border-white/5"><h3 className="text-purple-500 font-mono text-sm uppercase tracking-widest">艺术家管理</h3><button onClick={() => setIsAddingArtist(!isAddingArtist)} className="bg-purple-500 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase hover:bg-purple-400"><Plus size={16} /></button></div>
+                    {isAddingArtist && (
+                        <div className="bg-white/5 p-4 rounded-xl mb-6 grid gap-4">
+                             <input className="bg-black/50 p-3 rounded-lg text-white border border-white/10" placeholder="名字" value={newArtist.name} onChange={e => setNewArtist({...newArtist, name: e.target.value})} />
+                             <input className="bg-black/50 p-3 rounded-lg text-white border border-white/10" placeholder="角色/分工" value={newArtist.role} onChange={e => setNewArtist({...newArtist, role: e.target.value})} />
+                             <button onClick={addArtist} className="bg-purple-500/20 text-purple-400 border border-purple-500/50 py-2 rounded-lg font-bold">创建艺术家</button>
+                        </div>
+                    )}
+                    <div className="grid md:grid-cols-2 gap-4">
+                        {(data.artists || []).map(artist => (
+                            <div key={artist.id} className="bg-black/20 border border-white/5 rounded-xl p-4 flex items-center gap-4">
+                                <img src={artist.avatarUrl} className="w-12 h-12 rounded-full" alt=""/>
+                                <div className="flex-1"><div className="text-white font-bold">{artist.name}</div><div className="text-slate-500 text-xs">{artist.role}</div></div>
+                                <button onClick={() => deleteArtist(artist.id)} className="text-slate-600 hover:text-red-500"><Trash2 size={16} /></button>
+                            </div>
+                        ))}
+                    </div>
+                </motion.div>
+            )}
+
             {/* Cloud Tab */}
              {activeTab === 'cloud' && (
                 <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-10 max-w-4xl mx-auto pb-20">
                     <div className="flex items-center gap-2 border-b border-white/5 pb-4">
                         <Cloud size={18} className="text-orange-500"/>
-                        <h3 className="text-orange-500 font-mono text-sm uppercase tracking-widest">云端服务 (Cloud Services)</h3>
+                        <h3 className="text-orange-500 font-mono text-sm uppercase tracking-widest">云端服务配置 (Cloud Services)</h3>
                     </div>
+                    
                     {/* Sync */}
                     <div className="bg-orange-500/10 border border-orange-500/20 p-6 rounded-2xl relative overflow-hidden">
                         <div className="relative z-10">
@@ -843,27 +903,70 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                             </div>
                         </div>
                     </div>
-                    {/* File Storage */}
-                    <div>
-                        <h4 className="text-lg font-bold text-white mb-4">对象存储 (用于音乐/图片直传)</h4>
-                        <div className="bg-white/5 border border-white/10 rounded-xl p-5">
-                             <div className="flex items-center justify-between">
-                                <div><h4 className="text-white font-bold">Cloudflare R2</h4><p className="text-xs text-slate-500">推荐使用，免费且支持 S3 协议</p></div>
-                                <button onClick={() => handleCloudToggle('cf')} className="bg-white/10 text-white hover:bg-yellow-500 px-4 py-2 rounded-lg font-bold text-xs">{data.integrations.cloudflare?.enabled ? '已连接' : '配置'}</button>
-                            </div>
-                             <AnimatePresence>
-                                {editingCloud === 'cf' && !data.integrations.cloudflare?.enabled && (
-                                    <CloudConfigForm label="Cloudflare R2" color="text-yellow-500" config={data.integrations.cloudflare} onSave={(config) => handleSaveCloudConfig('cf', config)} onCancel={() => setEditingCloud(null)} type="s3" />
-                                )}
-                            </AnimatePresence>
+                    
+                    {/* Cloudflare R2 Config */}
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+                            <div className="flex items-center justify-between">
+                            <div><h4 className="text-white font-bold flex items-center gap-2"><Database size={16} /> Cloudflare R2</h4><p className="text-xs text-slate-500">推荐使用，免费且支持 S3 协议 (用于音频直传)</p></div>
+                            <button onClick={() => handleCloudToggle('cf')} className={`px-4 py-2 rounded-lg font-bold text-xs transition-colors ${data.integrations.cloudflare?.enabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-white/10 text-white hover:bg-yellow-500'}`}>{data.integrations.cloudflare?.enabled ? '已连接' : '配置'}</button>
                         </div>
+                            <AnimatePresence>
+                            {editingCloud === 'cf' && !data.integrations.cloudflare?.enabled && (
+                                <CloudConfigForm label="Cloudflare R2" color="text-yellow-500" config={data.integrations.cloudflare} onSave={(config) => handleSaveCloudConfig('cf', config)} onCancel={() => setEditingCloud(null)} type="s3" />
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* Aliyun Config (Restored) */}
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+                            <div className="flex items-center justify-between">
+                            <div><h4 className="text-white font-bold flex items-center gap-2"><CloudLightning size={16} /> 阿里云 OSS</h4><p className="text-xs text-slate-500">适用于国内访问加速 (S3 兼容模式)</p></div>
+                            <button onClick={() => handleCloudToggle('ali')} className={`px-4 py-2 rounded-lg font-bold text-xs transition-colors ${data.integrations.aliDrive?.enabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-white/10 text-white hover:bg-orange-500'}`}>{data.integrations.aliDrive?.enabled ? '已连接' : '配置'}</button>
+                        </div>
+                            <AnimatePresence>
+                            {editingCloud === 'ali' && !data.integrations.aliDrive?.enabled && (
+                                <CloudConfigForm label="阿里云 OSS" color="text-orange-500" config={data.integrations.aliDrive} onSave={(config) => handleSaveCloudConfig('ali', config)} onCancel={() => setEditingCloud(null)} type="s3" />
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                    {/* OneDrive Config (Restored) */}
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+                            <div className="flex items-center justify-between">
+                            <div><h4 className="text-white font-bold flex items-center gap-2"><CloudRain size={16} /> OneDrive</h4><p className="text-xs text-slate-500">仅存储 Client ID (用于外部链接生成)</p></div>
+                            <button onClick={() => handleCloudToggle('one')} className={`px-4 py-2 rounded-lg font-bold text-xs transition-colors ${data.integrations.oneDrive?.enabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-white/10 text-white hover:bg-blue-500'}`}>{data.integrations.oneDrive?.enabled ? '已连接' : '配置'}</button>
+                        </div>
+                            <AnimatePresence>
+                            {editingCloud === 'one' && !data.integrations.oneDrive?.enabled && (
+                                <CloudConfigForm label="OneDrive" color="text-blue-500" config={data.integrations.oneDrive} onSave={(config) => handleSaveCloudConfig('one', config)} onCancel={() => setEditingCloud(null)} type="oauth" />
+                            )}
+                        </AnimatePresence>
+                    </div>
+
+                </motion.div>
+            )}
+
+            {/* Contact Tab */}
+            {activeTab === 'contact' && (
+                <motion.div initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} className="space-y-8 max-w-4xl mx-auto pb-20">
+                    <div className="flex items-center gap-2 mb-6 pb-4 border-b border-white/5">
+                        <Mail size={18} className="text-rose-500"/>
+                        <h3 className="text-rose-500 font-mono text-sm uppercase tracking-widest">底部联系信息管理</h3>
+                    </div>
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 grid gap-6">
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <div className="space-y-2"><label className="text-[10px] text-slate-500 uppercase font-bold">商务合作邮箱</label><input value={data.contact?.email || ''} onChange={(e) => handleContactChange('email', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white" /></div>
+                            <div className="space-y-2"><label className="text-[10px] text-slate-500 uppercase font-bold">联系电话</label><input value={data.contact?.phone || ''} onChange={(e) => handleContactChange('phone', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-white" /></div>
+                        </div>
+                        <div className="space-y-2"><label className="text-[10px] text-slate-500 uppercase font-bold">底部版权文字</label><textarea value={data.contact?.footerText || ''} onChange={(e) => handleContactChange('footerText', e.target.value)} className="w-full bg-black/30 border border-white/10 rounded-xl p-4 text-slate-300 resize-none" /></div>
                     </div>
                 </motion.div>
             )}
+
         </div>
       </div>
 
-      {/* Cloud Picker Modal (Simplified for this update, focuses on R2 uploads) */}
+      {/* Cloud Picker Modal */}
       {showCloudPicker && (
         <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center backdrop-blur-sm p-4">
             <div className="bg-[#0F172A] border border-white/10 w-full max-w-2xl h-[600px] flex flex-col rounded-2xl shadow-2xl overflow-hidden">

@@ -153,6 +153,10 @@ const App: React.FC = () => {
       const savedData = localStorage.getItem('ves_site_data');
       if (savedData) {
         const parsed = JSON.parse(savedData);
+        // Helper to safely deep merge integrations to avoid "undefined" errors if old data is missing keys
+        const defaultIntegrations = INITIAL_DATA.integrations;
+        const parsedIntegrations = parsed.integrations || {};
+        
         return {
             ...INITIAL_DATA,
             ...parsed,
@@ -160,11 +164,9 @@ const App: React.FC = () => {
             contact: { ...INITIAL_DATA.contact, ...(parsed.contact || {}) },
             featuredAlbum: { ...INITIAL_DATA.featuredAlbum, ...(parsed.featuredAlbum || {}) },
             integrations: {
-                ...INITIAL_DATA.integrations,
-                ...(parsed.integrations || {}),
-                aliDrive: { ...INITIAL_DATA.integrations.aliDrive, ...(parsed.integrations?.aliDrive || {}) },
-                oneDrive: { ...INITIAL_DATA.integrations.oneDrive, ...(parsed.integrations?.oneDrive || {}) },
-                cloudflare: { ...INITIAL_DATA.integrations.cloudflare, ...(parsed.integrations?.cloudflare || {}) },
+                aliDrive: { ...defaultIntegrations.aliDrive, ...(parsedIntegrations.aliDrive || {}) },
+                oneDrive: { ...defaultIntegrations.oneDrive, ...(parsedIntegrations.oneDrive || {}) },
+                cloudflare: { ...defaultIntegrations.cloudflare, ...(parsedIntegrations.cloudflare || {}) },
             },
             // Arrays usually don't need deep merge, use parsed if available, else default
             resources: parsed.resources || INITIAL_DATA.resources,
@@ -184,32 +186,29 @@ const App: React.FC = () => {
   useEffect(() => {
       const fetchData = async () => {
           try {
-              // GET request does not need headers, it is public read
-              const res = await fetch('/api/sync', {
-                  method: 'GET'
-              });
+              const res = await fetch('/api/sync', { method: 'GET' });
               
               if (res.ok) {
                   const cloudData = await res.json();
                   if (cloudData && typeof cloudData === 'object') {
-                      console.log("Cloud sync successful (Public Read)");
-                      // Do a similar deep merge for cloud data update
-                      setSiteData(prev => ({
-                          ...prev,
-                          ...cloudData,
-                          hero: { ...prev.hero, ...(cloudData.hero || {}) },
-                          contact: { ...prev.contact, ...(cloudData.contact || {}) },
-                          integrations: {
-                             ...prev.integrations,
-                             ...(cloudData.integrations || {}),
-                             aliDrive: { ...prev.integrations.aliDrive, ...(cloudData.integrations?.aliDrive || {}) },
-                             oneDrive: { ...prev.integrations.oneDrive, ...(cloudData.integrations?.oneDrive || {}) },
-                             cloudflare: { ...prev.integrations.cloudflare, ...(cloudData.integrations?.cloudflare || {}) }
-                          }
-                      }));
+                      console.log("Cloud sync successful");
+                      setSiteData(prev => {
+                          const defaultIntegrations = INITIAL_DATA.integrations;
+                          const cloudIntegrations = cloudData.integrations || {};
+                          
+                          return {
+                            ...prev,
+                            ...cloudData,
+                            hero: { ...prev.hero, ...(cloudData.hero || {}) },
+                            contact: { ...prev.contact, ...(cloudData.contact || {}) },
+                            integrations: {
+                                aliDrive: { ...defaultIntegrations.aliDrive, ...(prev.integrations.aliDrive), ...(cloudIntegrations.aliDrive || {}) },
+                                oneDrive: { ...defaultIntegrations.oneDrive, ...(prev.integrations.oneDrive), ...(cloudIntegrations.oneDrive || {}) },
+                                cloudflare: { ...defaultIntegrations.cloudflare, ...(prev.integrations.cloudflare), ...(cloudIntegrations.cloudflare || {}) }
+                            }
+                          };
+                      });
                   }
-              } else {
-                   console.warn("Cloud sync skipped (No data or API error):", res.status);
               }
           } catch (err) {
               console.error("Cloud sync connection error:", err);
@@ -217,7 +216,7 @@ const App: React.FC = () => {
       };
 
       fetchData();
-  }, []); // Run once on mount
+  }, []);
 
   // Save to localStorage whenever siteData changes
   useEffect(() => {
@@ -266,7 +265,6 @@ const App: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
       e.preventDefault();
-      // Check against the password in siteData (which can be changed)
       const currentPass = siteData.adminPassword || 'admin';
       
       if (passwordInput === currentPass) {
@@ -295,18 +293,14 @@ const App: React.FC = () => {
     // 2. Cleanup previous audio
     if (audioRef.current) {
         audioRef.current.pause();
-        // Remove old listeners to prevent memory leaks / unwanted state updates
         audioRef.current.src = "";
         audioRef.current.load();
     }
 
     // 3. Setup New Audio Element
-    // We recreate the Audio element to ensure a clean state for Web Audio / CORS
     const newAudio = new Audio();
     
-    // Netease and some external streams block CORS (Cross-Origin Resource Sharing) headers.
-    // If we attach them to Web Audio API (analyser), the browser SecurityPolicy will silent them.
-    // Solution: If it's Netease/Restricted, DO NOT add crossOrigin="anonymous" and DO NOT connect to Web Audio.
+    // Netease and some external streams block CORS
     const isRestricted = track.sourceType === 'netease' || (track.audioUrl && track.audioUrl.includes('music.163.com'));
 
     if (!isRestricted) {
@@ -324,7 +318,6 @@ const App: React.FC = () => {
     newAudio.addEventListener('play', () => setIsPlaying(true));
     newAudio.addEventListener('pause', () => setIsPlaying(false));
     newAudio.addEventListener('error', (e) => {
-        // Only log real errors, avoid alerting on standard interruptions
         const target = e.target as HTMLAudioElement;
         if (target.error && target.error.code !== 0) {
              console.error("Audio playback error:", target.error);
@@ -337,7 +330,6 @@ const App: React.FC = () => {
     // 4. Connect to Visualizer (Only if NOT restricted)
     if (!isRestricted) {
         try {
-            // Initialize Audio Context if needed
             if (!audioContextRef.current) {
                 const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
                 audioContextRef.current = new AudioContextClass();
@@ -345,14 +337,10 @@ const App: React.FC = () => {
                 analyserRef.current.fftSize = 1024;
                 analyserRef.current.connect(audioContextRef.current.destination);
             }
-
-            // Resume context if suspended (browser autoplay policy)
             if (audioContextRef.current.state === 'suspended') {
                 await audioContextRef.current.resume();
             }
-
             if (analyserRef.current && audioContextRef.current) {
-                 // Create a new source node for this specific element
                  const source = audioContextRef.current.createMediaElementSource(newAudio);
                  source.connect(analyserRef.current);
             }
@@ -362,7 +350,6 @@ const App: React.FC = () => {
             setAnalyser(null);
         }
     } else {
-        // Restricted Mode: Disable Real Visualizer (Visualizer component will handle simulation)
         setAnalyser(null);
     }
 
@@ -371,16 +358,11 @@ const App: React.FC = () => {
         const playPromise = newAudio.play();
         if (playPromise !== undefined) {
             playPromise.then(() => {
-                // Playback started successfully
                 setCurrentTrackId(track.id);
                 setShowGlobalPlayer(true);
                 setIsPlaying(true);
             }).catch(e => {
-                // Auto-play policy or abort error
-                if (e.name === 'AbortError') {
-                     // Ignore abort errors caused by rapid track switching
-                     return;
-                }
+                if (e.name === 'AbortError') return;
                 console.error("Playback start failed:", e);
             });
         }
@@ -391,14 +373,12 @@ const App: React.FC = () => {
 
   const handleSeek = (time: number) => {
       if (audioRef.current) {
-          // Ensure we don't seek past duration
           const safeTime = Math.min(Math.max(0, time), audioRef.current.duration || 0);
           audioRef.current.currentTime = safeTime;
           setCurrentTime(safeTime);
       }
   };
 
-  // Find the full track object for currentTrackId
   const currentTrack = siteData.tracks.find(t => t.id === currentTrackId) || null;
 
   useEffect(() => {
@@ -407,7 +387,6 @@ const App: React.FC = () => {
     };
     window.addEventListener("mousemove", mouseMove);
 
-    // Simulate data fetching / asset loading
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 2500);
@@ -415,7 +394,6 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener("mousemove", mouseMove);
       clearTimeout(timer);
-      // Cleanup audio on unmount
       if (audioRef.current) {
           audioRef.current.pause();
           audioRef.current = null;
@@ -426,7 +404,6 @@ const App: React.FC = () => {
     };
   }, []);
 
-  // Determine if the system cursor should be shown (when in admin mode or password modal)
   const isSystemCursor = isAdminOpen || showPasswordModal;
 
   return (
@@ -435,7 +412,7 @@ const App: React.FC = () => {
       {/* Grain Overlay */}
       <div className="bg-grain pointer-events-none"></div>
 
-      {/* Custom Cursor - Only show when NOT in admin mode */}
+      {/* Custom Cursor */}
       {!isSystemCursor && (
         <>
           <motion.div

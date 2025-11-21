@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Pause, Heart, Disc, Info, ArrowUpRight, BarChart3, Music2 } from 'lucide-react';
+import { Play, Pause, Heart, Disc, Info, BarChart3, Music2, Plus, Share2 } from 'lucide-react';
 import type { Track, FeaturedAlbum } from '../types';
 
 interface MusicSectionProps {
@@ -13,52 +13,69 @@ interface MusicSectionProps {
   onViewDetails: (track: Track) => void;
 }
 
-const Equalizer = ({ active }: { active: boolean }) => {
-  if (!active) return <div className="h-4 w-4 bg-white/20 rounded-full"></div>;
-  
-  return (
-    <div className="flex items-end gap-[3px] h-4">
-      <motion.div animate={{ height: [4, 12, 4] }} transition={{ repeat: Infinity, duration: 0.4, ease: "linear" }} className="w-1 bg-hot-pink rounded-full" />
-      <motion.div animate={{ height: [12, 6, 12] }} transition={{ repeat: Infinity, duration: 0.5, ease: "linear" }} className="w-1 bg-lime-punch rounded-full" />
-      <motion.div animate={{ height: [6, 16, 6] }} transition={{ repeat: Infinity, duration: 0.6, ease: "linear" }} className="w-1 bg-electric-cyan rounded-full" />
-      <motion.div animate={{ height: [8, 4, 8] }} transition={{ repeat: Infinity, duration: 0.3, ease: "linear" }} className="w-1 bg-white rounded-full" />
-    </div>
-  );
-};
+const CompactTrackItem = ({ track, isActive, isPlaying, onPlay, onDetails }: { track: Track, isActive: boolean, isPlaying: boolean, onPlay: () => void, onDetails: () => void }) => {
+    const isNetease = !!track.neteaseId;
+
+    return (
+        <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-50px" }}
+            className={`group flex items-center gap-4 p-3 rounded-lg transition-all duration-300 border border-transparent ${isActive ? 'bg-white/10 border-l-4 border-l-hot-pink' : 'hover:bg-white/5 hover:border-white/10'}`}
+            onClick={onPlay}
+        >
+            {/* Cover & Play Btn */}
+            <div className="relative w-10 h-10 shrink-0 rounded overflow-hidden">
+                <img src={track.coverUrl} className={`w-full h-full object-cover ${isActive && isPlaying ? 'animate-pulse' : ''}`} alt={track.title} />
+                <div className={`absolute inset-0 bg-black/40 flex items-center justify-center ${isActive ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
+                    {isActive && isPlaying ? <Pause size={16} className="text-white" /> : <Play size={16} className="text-white" />}
+                </div>
+            </div>
+
+            {/* Info */}
+            <div className="flex-grow min-w-0 flex flex-col justify-center">
+                <div className={`font-bold text-sm truncate ${isActive ? 'text-hot-pink' : 'text-white group-hover:text-electric-cyan'}`}>
+                    {track.title}
+                </div>
+                <div className="text-xs text-slate-500 truncate flex items-center gap-2">
+                    {track.artist}
+                    {isNetease && <span className="px-1 py-0.5 bg-red-500/20 text-red-400 text-[8px] rounded border border-red-500/30 leading-none">NETEASE</span>}
+                </div>
+            </div>
+
+            {/* Meta (Hidden on mobile to save space) */}
+            <div className="hidden md:block text-xs text-slate-600 font-mono w-24 text-right">{track.album}</div>
+            <div className="text-xs text-slate-600 font-mono w-12 text-right">{track.duration}</div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={(e) => { e.stopPropagation(); onDetails(); }} className="p-1.5 hover:bg-white/20 rounded text-slate-400 hover:text-white"><Info size={14}/></button>
+                <button className="p-1.5 hover:bg-white/20 rounded text-slate-400 hover:text-hot-pink"><Heart size={14}/></button>
+            </div>
+        </motion.div>
+    );
+}
 
 const MusicSection: React.FC<MusicSectionProps> = ({ tracks, featuredAlbum, currentTrackId, isPlaying, onPlayTrack, onViewDetails }) => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [filter, setFilter] = useState<'all' | 'singles' | 'albums'>('all');
 
   return (
-    <section id="music" className="py-32 px-6 relative overflow-hidden min-h-screen">
-      {/* Decorative Background */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[1000px] bg-gradient-to-b from-indigo-900/20 to-transparent rounded-full blur-[120px] pointer-events-none" />
-      <div className="absolute right-0 top-1/4 w-px h-1/2 bg-gradient-to-b from-transparent via-electric-cyan/30 to-transparent"></div>
-
-      <div className="container mx-auto max-w-6xl relative z-10">
+    <section id="music" className="py-20 px-6 relative z-10 bg-midnight">
+      <div className="container mx-auto max-w-6xl">
         
-        {/* Header */}
-        <div className="mb-20 flex flex-col md:flex-row justify-between items-end border-b border-white/10 pb-8">
+        {/* Compact Header */}
+        <div className="flex flex-wrap justify-between items-end mb-10 border-b border-white/10 pb-4 gap-4">
           <div>
-             <div className="flex items-center gap-3 mb-4">
-                <span className="px-3 py-1 rounded-full border border-lime-punch/30 text-lime-punch text-[10px] font-mono font-bold uppercase tracking-widest bg-lime-punch/5">
-                    Official Discography
-                </span>
-             </div>
-             <h2 className="font-display font-black text-6xl md:text-8xl text-white leading-[0.85]">
-                SONIC <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-hot-pink via-purple-500 to-electric-cyan">ARCHIVE</span>
+             <h2 className="font-display font-black text-4xl md:text-5xl text-white tracking-tighter">
+                SONIC <span className="text-electric-cyan">ARCHIVE</span>
              </h2>
           </div>
-          
-          {/* Filters */}
-          <div className="mt-8 md:mt-0 flex gap-2">
+          <div className="flex gap-1 bg-white/5 p-1 rounded-lg">
               {['all', 'singles', 'albums'].map((f) => (
                   <button 
                     key={f}
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     onClick={() => setFilter(f as any)}
-                    className={`px-6 py-2 rounded-full text-sm font-bold uppercase tracking-wider transition-all border ${filter === f ? 'bg-white text-midnight border-white' : 'bg-transparent text-slate-500 border-white/10 hover:border-white/30 hover:text-white'}`}
+                    className={`px-4 py-1.5 rounded text-xs font-bold uppercase tracking-wide transition-all ${filter === f ? 'bg-white text-midnight' : 'text-slate-500 hover:text-white'}`}
                   >
                       {f}
                   </button>
@@ -66,163 +83,105 @@ const MusicSection: React.FC<MusicSectionProps> = ({ tracks, featuredAlbum, curr
           </div>
         </div>
 
-        {/* Featured Album Spotlight - Dynamic */}
-        <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="mb-24 relative"
-        >
-            <div className="absolute -top-10 -left-10 text-white/5 font-display font-black text-9xl z-0 select-none">FEATURED</div>
-            <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 bg-gradient-to-br from-white/5 to-transparent border border-white/10 rounded-3xl p-6 md:p-10 backdrop-blur-sm">
-                {/* Cover Art */}
-                <div className="lg:col-span-5 relative group">
-                    <div className="aspect-square rounded-xl overflow-hidden shadow-2xl shadow-black/50 relative">
-                        <img src={featuredAlbum.coverUrl} alt="Featured" className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60"></div>
-                        
-                        {/* Vinyl overlay effect */}
-                        <div className="absolute inset-0 bg-[radial-gradient(circle,transparent_40%,rgba(0,0,0,0.8)_100%)] opacity-40 mix-blend-multiply"></div>
-                        
-                        <div className="absolute bottom-6 left-6">
-                             <div className="inline-block px-3 py-1 bg-hot-pink text-white text-xs font-bold uppercase tracking-widest mb-2">Recommended</div>
-                             <h3 className="text-4xl font-display font-black text-white">{featuredAlbum.title}</h3>
+        <div className="grid lg:grid-cols-12 gap-8">
+            
+            {/* Featured Album - Compact Horizontal Card */}
+            <div className="lg:col-span-5">
+                <h3 className="text-xs font-bold text-lime-punch uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <Disc size={14} className="animate-spin-slow"/> Featured Release
+                </h3>
+                <div className="bg-surface border border-white/10 rounded-xl p-4 hover:border-hot-pink/50 transition-colors group relative overflow-hidden">
+                    {/* Glow */}
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-hot-pink/10 blur-[40px] rounded-full -translate-y-1/2 translate-x-1/2"></div>
+                    
+                    <div className="flex gap-5 items-start">
+                        <div className="w-28 h-28 shrink-0 rounded-lg overflow-hidden shadow-lg">
+                            <img src={featuredAlbum.coverUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" alt="Album"/>
                         </div>
-                    </div>
-                    {/* Decorative Disc sliding out */}
-                    <div className="absolute top-4 bottom-4 right-4 w-full rounded-full bg-black -z-10 translate-x-2 group-hover:translate-x-16 transition-transform duration-500 flex items-center justify-center border-[10px] border-gray-900 shadow-xl">
-                        <div className="w-1/3 h-1/3 rounded-full bg-gradient-to-tr from-hot-pink to-purple-600 animate-spin-slow"></div>
+                        <div className="flex flex-col justify-between h-28">
+                            <div>
+                                <h4 className="text-2xl font-display font-bold text-white leading-none mb-1">{featuredAlbum.title}</h4>
+                                <p className="text-xs text-slate-400 font-mono mb-2">{featuredAlbum.type}</p>
+                                <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{featuredAlbum.description}</p>
+                            </div>
+                            <div className="flex gap-2 mt-auto">
+                                <button className="px-3 py-1.5 bg-hot-pink text-white text-xs font-bold rounded flex items-center gap-1 hover:bg-white hover:text-midnight transition-colors">
+                                    <Play size={12} fill="currentColor"/> Play
+                                </button>
+                                <button className="px-3 py-1.5 border border-white/20 text-slate-300 text-xs font-bold rounded hover:bg-white/10">
+                                    Save
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* Info */}
-                <div className="lg:col-span-7 flex flex-col justify-center pl-0 lg:pl-10">
-                    <div className="flex items-center gap-4 mb-6 text-slate-400 font-mono text-sm">
-                        <span>{featuredAlbum.type}</span>
-                        <span className="w-1 h-1 bg-slate-600 rounded-full"></span>
-                        <span className="flex items-center gap-1"><BarChart3 size={14} /> Trending Now</span>
+                {/* Stats Mini Box */}
+                <div className="grid grid-cols-2 gap-4 mt-4">
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/5 flex flex-col justify-between h-24">
+                        <BarChart3 size={16} className="text-electric-cyan mb-auto"/>
+                        <div>
+                            <div className="text-xl font-bold text-white">1.2M</div>
+                            <div className="text-[10px] text-slate-500 uppercase">Monthly Streams</div>
+                        </div>
                     </div>
-                    <p className="text-xl md:text-2xl text-slate-200 leading-relaxed font-sans mb-10">
-                        "{featuredAlbum.description}" <br/> 
-                        <span className="text-slate-500 text-base mt-2 block">Available on all major streaming platforms.</span>
-                    </p>
-                    <div className="flex flex-wrap gap-4">
-                        <button className="px-8 py-4 bg-white text-midnight font-bold rounded-full hover:bg-electric-cyan transition-colors flex items-center gap-2">
-                            <Play size={18} fill="currentColor" /> Listen Full Album
-                        </button>
-                        <button className="px-8 py-4 border border-white/20 text-white font-bold rounded-full hover:bg-white/10 transition-colors flex items-center gap-2">
-                            <Heart size={18} /> Save
-                        </button>
+                    <div className="bg-white/5 rounded-xl p-4 border border-white/5 flex flex-col justify-between h-24">
+                        <Music2 size={16} className="text-purple-400 mb-auto"/>
+                        <div>
+                            <div className="text-xl font-bold text-white">{tracks.length}</div>
+                            <div className="text-[10px] text-slate-500 uppercase">Total Tracks</div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </motion.div>
 
-        {/* Track List */}
-        <div className="grid grid-cols-1 gap-4">
-          {tracks.length === 0 ? (
-             <div className="text-center py-32 bg-white/5 rounded-3xl border border-dashed border-white/10 flex flex-col items-center justify-center gap-4">
-                <Disc size={48} className="text-slate-600 opacity-50" />
-                <p className="text-slate-400 font-sans text-lg">暂无发布作品，请在后台添加。</p>
-             </div>
-          ) : (
-             tracks.map((track, index) => {
-                // If Netease ID exists, we treat it as a Netease track
-                const isNetease = !!track.neteaseId;
-                const isActive = currentTrackId === track.id;
-                const isCurrentlyPlaying = isActive && isPlaying;
-
-                if (isNetease && isActive) {
-                    // Expanded Netease Player View
-                    return (
-                        <motion.div 
-                            key={track.id}
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            className="rounded-2xl overflow-hidden border border-hot-pink/50 shadow-[0_0_30px_rgba(255,0,128,0.15)] mb-4"
-                        >
-                            <iframe 
-                                frameBorder="no" 
-                                width="100%" 
-                                height="86" 
-                                src={`//music.163.com/outchain/player?type=2&id=${track.neteaseId}&auto=1&height=66`}
-                                className="block"
-                            ></iframe>
-                        </motion.div>
-                    )
-                }
-
-                return (
-                  <motion.div
-                    key={track.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ delay: index * 0.1 }}
-                    className={`group relative rounded-2xl p-4 transition-all duration-500 border ${isActive ? 'bg-white/10 border-hot-pink/50 shadow-[0_0_30px_rgba(255,0,128,0.15)]' : 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'}`}
-                  >
-                     <div className="flex flex-col md:flex-row items-center gap-6 md:gap-8">
-                        
-                        {/* Mini Cover */}
-                        <div className="relative shrink-0 cursor-pointer w-16 h-16 md:w-20 md:h-20 rounded-lg overflow-hidden group/cover" onClick={() => onPlayTrack(track)}>
-                           <img src={track.coverUrl} alt={track.title} className="w-full h-full object-cover opacity-80 group-hover/cover:scale-110 transition-transform duration-500" />
-                           <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover/cover:opacity-100 transition-opacity">
-                               {isCurrentlyPlaying ? <Pause size={24} fill="white" /> : <Play size={24} fill="white" />}
-                           </div>
-                           {isNetease && (
-                               <div className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5" title="网易云音乐">
-                                   <Music2 size={10} />
-                               </div>
-                           )}
+            {/* Track List - Compact Table Style */}
+            <div className="lg:col-span-7">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-widest">Tracklist</h3>
+                    <button className="text-[10px] text-electric-cyan hover:text-white transition-colors font-mono flex items-center gap-1">
+                        VIEW ALL <Plus size={10}/>
+                    </button>
+                </div>
+                
+                <div className="flex flex-col gap-1">
+                    {tracks.length === 0 ? (
+                        <div className="text-center py-10 border border-dashed border-white/10 rounded-lg text-slate-600 text-sm">
+                            No tracks available.
                         </div>
+                    ) : (
+                        tracks.map(track => (
+                            <React.Fragment key={track.id}>
+                                {/* If netease and active, expand */}
+                                {!!track.neteaseId && currentTrackId === track.id && isPlaying && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        className="mb-2 rounded-lg overflow-hidden border border-red-500/30"
+                                    >
+                                         <iframe 
+                                            frameBorder="no" 
+                                            width="100%" 
+                                            height="86" 
+                                            src={`//music.163.com/outchain/player?type=2&id=${track.neteaseId}&auto=1&height=66`}
+                                            className="block"
+                                        ></iframe>
+                                    </motion.div>
+                                )}
+                                <CompactTrackItem 
+                                    track={track} 
+                                    isActive={currentTrackId === track.id} 
+                                    isPlaying={isPlaying && currentTrackId === track.id}
+                                    onPlay={() => onPlayTrack(track)}
+                                    onDetails={() => onViewDetails(track)}
+                                />
+                            </React.Fragment>
+                        ))
+                    )}
+                </div>
+            </div>
 
-                        {/* Track Info */}
-                        <div 
-                          className="flex-grow text-center md:text-left w-full cursor-pointer group/info" 
-                          onClick={() => onViewDetails(track)}
-                        >
-                           <div className="flex items-center justify-center md:justify-start gap-3 mb-1">
-                              <Equalizer active={isCurrentlyPlaying} />
-                              <h3 className={`font-display font-bold text-xl md:text-2xl transition-colors flex items-center gap-3 ${isActive ? 'text-hot-pink' : 'text-white group-hover/info:text-electric-cyan'}`}>
-                                 {track.title}
-                              </h3>
-                           </div>
-                           
-                           <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 text-sm font-sans tracking-wider">
-                              <span className="text-slate-400">{track.artist}</span>
-                              <span className="w-1 h-1 bg-slate-700 rounded-full"></span>
-                              <span className="text-slate-500">{track.album}</span>
-                              {isNetease && <span className="text-red-400 text-[10px] border border-red-400/30 px-1.5 rounded">Netease</span>}
-                           </div>
-                        </div>
-
-                        {/* Stats & Actions */}
-                        <div className="flex items-center gap-6 w-full md:w-auto justify-between md:justify-end px-4 md:px-0">
-                           <div className="font-mono text-sm text-slate-500">{track.duration}</div>
-                           
-                           <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button className="p-2 rounded-full hover:bg-white/20 text-white transition-colors" onClick={(e: React.MouseEvent<HTMLButtonElement>) => {e.stopPropagation(); onViewDetails(track)}}>
-                                    <Info size={18} />
-                                </button>
-                                <button className="p-2 rounded-full hover:text-hot-pink text-slate-400 transition-colors">
-                                    <Heart size={18} />
-                                </button>
-                           </div>
-                        </div>
-
-                     </div>
-                  </motion.div>
-                );
-             })
-          )}
         </div>
-
-        <div className="mt-16 text-center">
-            <button className="inline-flex items-center gap-2 text-electric-cyan font-mono text-sm font-bold uppercase hover:text-white transition-colors group">
-                View All Releases <ArrowUpRight size={16} className="group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform" />
-            </button>
-        </div>
-
       </div>
     </section>
   );

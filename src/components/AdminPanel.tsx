@@ -207,7 +207,7 @@ const CloudConfigForm = ({
     color: string,
     type?: 's3' | 'oauth'
 }) => {
-    const [localConfig, setLocalConfig] = useState<CloudConfig>(config);
+    const [localConfig, setLocalConfig] = useState<CloudConfig>(config || { enabled: false, accessKey: '', secretKey: '', bucket: '', endpoint: '' });
     const [showSecret, setShowSecret] = useState(false);
     
     return (
@@ -462,7 +462,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       setTimeout(() => { if (syncStatus === 'success') setSyncStatus('idle'); }, 5000);
   };
 
-  // --- Cloud Config Handlers (FIXED) ---
+  // --- Cloud Config Handlers (Safe Access) ---
   const handleCloudToggle = (provider: 'ali' | 'one' | 'cf') => {
       let key: keyof SiteData['integrations'];
       if (provider === 'cf') key = 'cloudflare';
@@ -470,8 +470,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       else if (provider === 'one') key = 'oneDrive';
       else return; 
 
-      const currentConfig = data.integrations[key];
-      if (currentConfig.enabled) {
+      const currentConfig = data.integrations?.[key];
+      if (currentConfig?.enabled) {
           updateData(prev => ({ ...prev, integrations: { ...prev.integrations, [key]: { ...prev.integrations[key], enabled: false } } }));
           setEditingCloud(null);
       } else {
@@ -486,7 +486,13 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
       else if (provider === 'one') key = 'oneDrive';
       else return;
 
-      updateData(prev => ({ ...prev, integrations: { ...prev.integrations, [key]: config } }));
+      updateData(prev => ({ 
+          ...prev, 
+          integrations: { 
+              ...prev.integrations, 
+              [key]: config 
+          } 
+      }));
       setEditingCloud(null);
   };
 
@@ -511,7 +517,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
   const handleCloudUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const config = data.integrations.cloudflare; // Defaulting to R2 for direct uploads in this version
+      const config = data.integrations?.cloudflare; // Defaulting to R2 for direct uploads in this version
       
       if (pickerProvider === 'cf' && config?.enabled) {
           setUploadStatus({ active: true, progress: 0, speed: 'Calculating...', remaining: '...', message: '正在连接 R2...' });
@@ -908,11 +914,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                     <div className="bg-white/5 border border-white/10 rounded-xl p-5">
                             <div className="flex items-center justify-between">
                             <div><h4 className="text-white font-bold flex items-center gap-2"><Database size={16} /> Cloudflare R2</h4><p className="text-xs text-slate-500">推荐使用，免费且支持 S3 协议 (用于音频直传)</p></div>
-                            <button onClick={() => handleCloudToggle('cf')} className={`px-4 py-2 rounded-lg font-bold text-xs transition-colors ${data.integrations.cloudflare?.enabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-white/10 text-white hover:bg-yellow-500'}`}>{data.integrations.cloudflare?.enabled ? '已连接' : '配置'}</button>
+                            <button onClick={() => handleCloudToggle('cf')} className={`px-4 py-2 rounded-lg font-bold text-xs transition-colors ${data.integrations?.cloudflare?.enabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-white/10 text-white hover:bg-yellow-500'}`}>{data.integrations?.cloudflare?.enabled ? '已连接' : '配置'}</button>
                         </div>
                             <AnimatePresence>
-                            {editingCloud === 'cf' && !data.integrations.cloudflare?.enabled && (
-                                <CloudConfigForm label="Cloudflare R2" color="text-yellow-500" config={data.integrations.cloudflare} onSave={(config) => handleSaveCloudConfig('cf', config)} onCancel={() => setEditingCloud(null)} type="s3" />
+                            {editingCloud === 'cf' && !data.integrations?.cloudflare?.enabled && (
+                                <CloudConfigForm label="Cloudflare R2" color="text-yellow-500" config={data.integrations?.cloudflare!} onSave={(config) => handleSaveCloudConfig('cf', config)} onCancel={() => setEditingCloud(null)} type="s3" />
                             )}
                         </AnimatePresence>
                     </div>
@@ -921,11 +927,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                     <div className="bg-white/5 border border-white/10 rounded-xl p-5">
                             <div className="flex items-center justify-between">
                             <div><h4 className="text-white font-bold flex items-center gap-2"><CloudLightning size={16} /> 阿里云 OSS</h4><p className="text-xs text-slate-500">适用于国内访问加速 (S3 兼容模式)</p></div>
-                            <button onClick={() => handleCloudToggle('ali')} className={`px-4 py-2 rounded-lg font-bold text-xs transition-colors ${data.integrations.aliDrive?.enabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-white/10 text-white hover:bg-orange-500'}`}>{data.integrations.aliDrive?.enabled ? '已连接' : '配置'}</button>
+                            <button onClick={() => handleCloudToggle('ali')} className={`px-4 py-2 rounded-lg font-bold text-xs transition-colors ${data.integrations?.aliDrive?.enabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-white/10 text-white hover:bg-orange-500'}`}>{data.integrations?.aliDrive?.enabled ? '已连接' : '配置'}</button>
                         </div>
                             <AnimatePresence>
-                            {editingCloud === 'ali' && !data.integrations.aliDrive?.enabled && (
-                                <CloudConfigForm label="阿里云 OSS" color="text-orange-500" config={data.integrations.aliDrive} onSave={(config) => handleSaveCloudConfig('ali', config)} onCancel={() => setEditingCloud(null)} type="s3" />
+                            {editingCloud === 'ali' && !data.integrations?.aliDrive?.enabled && (
+                                <CloudConfigForm label="阿里云 OSS" color="text-orange-500" config={data.integrations?.aliDrive!} onSave={(config) => handleSaveCloudConfig('ali', config)} onCancel={() => setEditingCloud(null)} type="s3" />
                             )}
                         </AnimatePresence>
                     </div>
@@ -934,11 +940,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                     <div className="bg-white/5 border border-white/10 rounded-xl p-5">
                             <div className="flex items-center justify-between">
                             <div><h4 className="text-white font-bold flex items-center gap-2"><CloudRain size={16} /> OneDrive</h4><p className="text-xs text-slate-500">仅存储 Client ID (用于外部链接生成)</p></div>
-                            <button onClick={() => handleCloudToggle('one')} className={`px-4 py-2 rounded-lg font-bold text-xs transition-colors ${data.integrations.oneDrive?.enabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-white/10 text-white hover:bg-blue-500'}`}>{data.integrations.oneDrive?.enabled ? '已连接' : '配置'}</button>
+                            <button onClick={() => handleCloudToggle('one')} className={`px-4 py-2 rounded-lg font-bold text-xs transition-colors ${data.integrations?.oneDrive?.enabled ? 'bg-green-500/20 text-green-400 border border-green-500/50' : 'bg-white/10 text-white hover:bg-blue-500'}`}>{data.integrations?.oneDrive?.enabled ? '已连接' : '配置'}</button>
                         </div>
                             <AnimatePresence>
-                            {editingCloud === 'one' && !data.integrations.oneDrive?.enabled && (
-                                <CloudConfigForm label="OneDrive" color="text-blue-500" config={data.integrations.oneDrive} onSave={(config) => handleSaveCloudConfig('one', config)} onCancel={() => setEditingCloud(null)} type="oauth" />
+                            {editingCloud === 'one' && !data.integrations?.oneDrive?.enabled && (
+                                <CloudConfigForm label="OneDrive" color="text-blue-500" config={data.integrations?.oneDrive!} onSave={(config) => handleSaveCloudConfig('one', config)} onCancel={() => setEditingCloud(null)} type="oauth" />
                             )}
                         </AnimatePresence>
                     </div>

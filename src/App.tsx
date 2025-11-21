@@ -13,11 +13,12 @@ import Loader from './components/Loader';
 import TrackDetailModal from './components/TrackDetailModal';
 import GlobalPlayer from './components/GlobalPlayer';
 import { AnimatePresence, motion } from 'framer-motion';
-import type { SiteData, Track } from './types';
+import type { SiteData, Track, ThemeMode } from './types';
 import { Lock, ArrowRight, ShieldAlert } from 'lucide-react';
 
 // Initial Data Configuration
 const INITIAL_DATA: SiteData = {
+  theme: 'cyberpunk',
   adminPassword: import.meta.env.VITE_ADMIN_PASSWORD || 'admin',
   navigation: [
     { id: 'nav_1', label: '音乐作品', targetId: 'music' },
@@ -117,13 +118,37 @@ const INITIAL_DATA: SiteData = {
   }
 };
 
+// Define Themes
+const THEMES: Record<ThemeMode, Record<string, string>> = {
+    cyberpunk: {
+        '--color-bg': '#0F172A',        // Midnight Blue
+        '--color-primary': '#FF0080',   // Hot Pink
+        '--color-secondary': '#06B6D4', // Electric Cyan
+        '--color-accent': '#D9F99D',    // Lime Punch
+        '--color-surface': '#1E293B',   // Slate 800
+    },
+    acid: {
+        '--color-bg': '#000000',        // Pure Black
+        '--color-primary': '#CCFF00',   // Acid Green
+        '--color-secondary': '#FF3300', // Danger Orange
+        '--color-accent': '#FFFFFF',    // White
+        '--color-surface': '#111111',   // Dark Grey
+    },
+    vaporwave: {
+        '--color-bg': '#240046',        // Deep Indigo
+        '--color-primary': '#FF9E00',   // Sunset Orange
+        '--color-secondary': '#E0AAFF', // Lavender
+        '--color-accent': '#7B2CBF',    // Purple
+        '--color-surface': '#3C096C',   // Rich Violet
+    }
+};
+
 const App: React.FC = () => {
   const [siteData, setSiteData] = useState<SiteData>(() => {
     try {
       const savedData = localStorage.getItem('ves_site_data');
       if (savedData) {
         const parsed = JSON.parse(savedData);
-        // Deep merge to ensure new fields like storage exist even if local storage is old
         return {
             ...INITIAL_DATA,
             ...parsed,
@@ -134,7 +159,8 @@ const App: React.FC = () => {
             resources: parsed.resources || INITIAL_DATA.resources,
             tracks: parsed.tracks || INITIAL_DATA.tracks,
             articles: parsed.articles || INITIAL_DATA.articles,
-            navigation: parsed.navigation || INITIAL_DATA.navigation
+            navigation: parsed.navigation || INITIAL_DATA.navigation,
+            theme: parsed.theme || INITIAL_DATA.theme
         };
       }
     } catch (e) {
@@ -142,6 +168,17 @@ const App: React.FC = () => {
     }
     return INITIAL_DATA;
   });
+
+  // Apply Theme Effect
+  useEffect(() => {
+      const theme = siteData.theme || 'cyberpunk';
+      const colors = THEMES[theme] || THEMES['cyberpunk'];
+      const root = document.documentElement;
+      
+      Object.entries(colors).forEach(([key, value]) => {
+          root.style.setProperty(key, value);
+      });
+  }, [siteData.theme]);
 
   useEffect(() => {
     try {
@@ -317,7 +354,7 @@ const App: React.FC = () => {
   const isSystemCursor = isAdminOpen || showPasswordModal;
 
   return (
-    <div className={`bg-void min-h-screen text-gray-100 selection:bg-hot-pink selection:text-white font-sans relative pb-20 ${isSystemCursor ? 'cursor-auto' : 'cursor-none'}`}>
+    <div className={`bg-midnight min-h-screen text-gray-100 selection:bg-hot-pink selection:text-white font-sans relative pb-20 ${isSystemCursor ? 'cursor-auto' : 'cursor-none'} transition-colors duration-500`}>
       <div className="bg-grain pointer-events-none"></div>
 
       {!isSystemCursor && (
@@ -352,7 +389,7 @@ const App: React.FC = () => {
                     animate={loginError ? { x: [-10, 10, -10, 10, 0], scale: 1, y: 0 } : { scale: 1, y: 0 }}
                     exit={{ scale: 0.9, y: 20 }}
                     transition={loginError ? { type: "spring", stiffness: 300, damping: 10 } : { duration: 0.3 }}
-                    className="bg-black border border-white/10 rounded-2xl p-8 w-full max-w-md relative overflow-hidden shadow-[0_0_50px_rgba(255,0,128,0.2)]"
+                    className="bg-surface border border-white/10 rounded-2xl p-8 w-full max-w-md relative overflow-hidden shadow-[0_0_50px_rgba(255,0,128,0.2)]"
                   >
                        <button onClick={() => setShowPasswordModal(false)} className="absolute top-4 right-4 text-slate-500 hover:text-white"><ShieldAlert size={20} /></button>
                        <div className="flex flex-col items-center gap-4 mb-8">

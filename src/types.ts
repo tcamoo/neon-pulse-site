@@ -35,6 +35,18 @@ export interface Artist {
   status: 'active' | 'guest';
 }
 
+export interface Resource {
+  id: string;
+  title: string;
+  description: string;
+  type: 'audio' | 'video' | 'project' | 'other';
+  provider: 'aliyun' | 'baidu' | 'quark' | 'google';
+  link: string;
+  accessCode?: string;
+  size?: string;
+  date: string;
+}
+
 export interface HeroData {
   titleLine1: string;
   titleLine2: string;
@@ -96,6 +108,7 @@ export interface SiteData {
   tracks: Track[];
   articles: Article[];
   artists: Artist[];
+  resources: Resource[]; // New Resources Section
   contact: ContactConfig;
   integrations: CloudIntegrations;
 }

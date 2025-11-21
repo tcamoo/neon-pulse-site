@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Menu, X, Settings } from 'lucide-react';
+import { Menu, X, Settings, Radio } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { NavItem } from '../types';
 
@@ -10,33 +10,19 @@ interface NavbarProps {
   navItems: NavItem[];
 }
 
-// Improved Animated Tape Reel Icon
-const TapeReel = () => {
+// Sonic Brand Icon
+const SonicLogo = () => {
   return (
-    <div className="relative w-14 h-14 flex items-center justify-center group">
-       {/* Main chassis */}
-       <div className="absolute inset-0 bg-midnight/80 rounded-full border border-white/10 backdrop-blur-sm scale-90"></div>
-       
-       {/* Left Reel */}
-       <div className="absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 border-2 border-slate-600 rounded-full flex items-center justify-center animate-spin-slow" style={{ animationDuration: '3s' }}>
-           <div className="w-1 h-1 bg-white rounded-full"></div>
-           <div className="absolute w-full h-[1px] bg-slate-700"></div>
-           <div className="absolute w-[1px] h-full bg-slate-700"></div>
-       </div>
-
-       {/* Right Reel */}
-       <div className="absolute right-2 top-1/2 -translate-y-1/2 w-6 h-6 border-2 border-slate-600 rounded-full flex items-center justify-center animate-spin-slow" style={{ animationDuration: '3s' }}>
-           <div className="w-1 h-1 bg-white rounded-full"></div>
-           <div className="absolute w-full h-[1px] bg-slate-700"></div>
-           <div className="absolute w-[1px] h-full bg-slate-700"></div>
-       </div>
-
-       {/* Tape connecting them */}
-       <div className="absolute top-1/2 -translate-y-1/2 left-5 right-5 h-[2px] bg-hot-pink/80"></div>
-
-       {/* Center Hub / Head */}
-       <div className="absolute inset-0 m-auto w-4 h-4 bg-surface border border-white/20 rounded flex items-center justify-center z-10 shadow-lg">
-           <div className="w-1.5 h-1.5 bg-electric-cyan rounded-full animate-pulse"></div>
+    <div className="relative w-10 h-10 flex items-center justify-center bg-midnight border border-white/20 rounded-lg overflow-hidden group cursor-pointer hover:border-lime-punch transition-colors">
+       <div className="flex items-center gap-[2px] h-4">
+           {[1,2,3,4,5].map(i => (
+               <motion.div 
+                  key={i} 
+                  className="w-1 bg-white group-hover:bg-lime-punch"
+                  animate={{ height: ['20%', '80%', '40%'] }}
+                  transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.1 }}
+               />
+           ))}
        </div>
     </div>
   );
@@ -50,57 +36,67 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin, toggleAdmin, navItems }) => {
       <motion.nav 
         initial={{ y: -100 }}
         animate={{ y: 0 }}
-        transition={{ type: 'spring', stiffness: 100 }}
-        className="fixed top-4 left-0 right-0 z-40 flex justify-center pointer-events-none"
+        transition={{ type: 'spring', stiffness: 80, damping: 20 }}
+        className="fixed top-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none"
       >
-        <div className="glass-panel rounded-full px-2 py-2 flex items-center gap-2 pointer-events-auto shadow-lg shadow-hot-pink/10">
+        {/* Floating Capsule Container */}
+        <div className="pointer-events-auto bg-midnight/80 backdrop-blur-xl border border-white/10 rounded-2xl px-3 py-2 shadow-2xl shadow-black/50 flex items-center gap-4 md:gap-8">
           
-          {/* Logo / Animated Tape Reel */}
-          <TapeReel />
+          {/* Brand */}
+          <div className="pl-2">
+             <SonicLogo />
+          </div>
 
           {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-1 px-4">
+          <div className="hidden md:flex items-center bg-white/5 rounded-lg p-1 border border-white/5">
             {navItems.map((link) => (
               <a 
                 key={link.id} 
                 href={`#${link.targetId}`} 
-                className="px-6 py-2 rounded-full text-sm font-bold uppercase text-slate-300 hover:text-white hover:bg-white/10 transition-all"
+                className="px-5 py-2 rounded-md text-xs font-bold uppercase tracking-wider text-slate-400 hover:text-midnight hover:bg-white transition-all duration-300"
               >
                 {link.label}
               </a>
             ))}
           </div>
 
-          {/* Admin Toggle */}
-          <button 
-            onClick={toggleAdmin}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300
-              ${isAdmin ? 'bg-lime-punch text-midnight rotate-90 shadow-[0_0_15px_rgba(217,249,157,0.5)]' : 'bg-surface text-white hover:bg-white/20'}`}
-            title="后台管理"
-          >
-            <Settings size={18} />
-          </button>
+          {/* Actions */}
+          <div className="flex items-center gap-2 pr-2">
+              {/* Admin Toggle */}
+              <button 
+                onClick={toggleAdmin}
+                className={`w-10 h-10 rounded-lg flex items-center justify-center transition-all duration-300 border
+                  ${isAdmin ? 'bg-hot-pink text-white border-hot-pink animate-pulse' : 'bg-transparent text-slate-400 border-transparent hover:bg-white/10 hover:text-white'}`}
+                title="System Access"
+              >
+                <Settings size={18} />
+              </button>
 
-          {/* Mobile Menu Toggle */}
-          <button 
-            className="md:hidden w-12 h-12 bg-hot-pink text-white rounded-full flex items-center justify-center z-50 relative"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            {isOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
+              {/* Mobile Menu Toggle */}
+              <button 
+                className="md:hidden w-10 h-10 bg-white text-midnight rounded-lg flex items-center justify-center hover:bg-lime-punch transition-colors"
+                onClick={() => setIsOpen(!isOpen)}
+              >
+                {isOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+          </div>
+
         </div>
       </motion.nav>
 
-      {/* Mobile Menu Overlay */}
+      {/* Full Screen Mobile Menu Overlay */}
       <AnimatePresence>
         {isOpen && (
           <motion.div 
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="fixed inset-0 bg-[#0F172A]/98 backdrop-blur-3xl z-30 flex flex-col items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-midnight/98 z-40 flex flex-col items-center justify-center"
           >
-            <div className="flex flex-col gap-8 text-center">
+            <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay pointer-events-none"></div>
+            
+            <div className="flex flex-col gap-6 text-center relative z-10">
+              <div className="text-xs font-mono text-slate-500 mb-4 uppercase tracking-widest">Navigation System</div>
               {navItems.map((link, index) => (
                 <motion.a 
                   key={link.id}
@@ -108,24 +104,19 @@ const Navbar: React.FC<NavbarProps> = ({ isAdmin, toggleAdmin, navItems }) => {
                   onClick={() => setIsOpen(false)}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.1 + index * 0.1 }}
-                  className="font-display text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-hot-pink to-electric-cyan hover:scale-110 transition-transform px-6 py-2"
+                  transition={{ delay: index * 0.05 }}
+                  className="font-display text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-500 hover:to-lime-punch transition-all"
                 >
                   {link.label}
                 </motion.a>
               ))}
               
-              <div className="w-16 h-1 bg-white/10 rounded-full mx-auto mt-4"></div>
+              <div className="w-12 h-1 bg-hot-pink mx-auto mt-8"></div>
               
-              <button 
-                  onClick={() => {
-                      toggleAdmin();
-                      setIsOpen(false);
-                  }}
-                  className="text-slate-400 font-mono text-sm uppercase tracking-widest hover:text-white flex items-center gap-2 mx-auto"
-              >
-                  <Settings size={14} /> Admin Access
-              </button>
+              <div className="mt-8 flex items-center justify-center gap-2 text-slate-500 text-xs font-mono">
+                  <Radio size={14} className="animate-pulse text-lime-punch" />
+                  SECURE CONNECTION ESTABLISHED
+              </div>
             </div>
           </motion.div>
         )}

@@ -22,7 +22,7 @@ const INITIAL_DATA: SiteData = {
   navigation: [
     { id: 'nav_1', label: '音乐作品', targetId: 'music' },
     { id: 'nav_2', label: '动态现场', targetId: 'live' },
-    { id: 'nav_3', label: '资源下载', targetId: 'downloads' },
+    { id: 'nav_3', label: '资源挂载', targetId: 'downloads' },
     { id: 'nav_4', label: '联系合作', targetId: 'contact' },
   ],
   hero: {
@@ -49,18 +49,17 @@ const INITIAL_DATA: SiteData = {
         plays: 124000, 
         coverUrl: 'https://images.unsplash.com/photo-1614613535308-eb5fbd3d2c17?q=80&w=2070&auto=format&fit=crop',
         audioUrl: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Tours/Enthusiast/Tours_-_01_-_Enthusiast.mp3',
-        lyrics: "Walking down the street at midnight\nNeon lights reflecting in your eyes\nThe city sleeps but we are alive\nChasing shadows under purple skies\n\n(Chorus)\nOh, midnight city, take me away\nLost in the rhythm, we'll sway\nMidnight city, don't let go\nFeel the energy, let it flow\n\nConcrete jungle, electric dreams\nNothing is ever as it seems\nWe're running wild, we're running free\nJust you and the night and me"
+        lyrics: "Walking down the street at midnight\nNeon lights reflecting in your eyes\nThe city sleeps but we are alive\nChasing shadows under purple skies"
     },
     { 
-        id: '2', 
-        title: 'Neon Tears', 
-        artist: 'VES', 
-        album: 'Noise & Silence', 
-        duration: '4:12', 
+        id: 'netease_demo', 
+        title: '网易云热单 (Demo)', 
+        artist: 'Various', 
+        album: 'Cloud Music', 
+        duration: '04:20', 
         plays: 89000, 
         coverUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1964&auto=format&fit=crop',
-        audioUrl: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Elipses.mp3',
-        lyrics: "Tears falling down like acid rain\nColors blending in the drain\nCybernetic heart, feeling pain\nDisconnecting from the main\n\n(Chorus)\nNeon tears, crying in the dark\nLeft a glowing, burning mark\nNeon tears, digital soul\nLosing control, losing control\n\nSystem failure, crashing down\nSilence is the only sound\nReboot the feeling, start again\nErase the memory, ease the pain"
+        neteaseId: '186016', // Example ID (Sunny Day)
     },
     { 
         id: '3', 
@@ -71,7 +70,6 @@ const INITIAL_DATA: SiteData = {
         plays: 210000, 
         coverUrl: 'https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=2070&auto=format&fit=crop',
         audioUrl: 'https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Chad_Crouch/Arps/Chad_Crouch_-_Algorithms.mp3',
-        lyrics: "Stepping into the unknown\nGravity feels like a stone\nDrifting through the cosmic sea\nThe void is calling out to me\n\n(Chorus)\nVoid walker, space and time\nLeaving the world behind\nVoid walker, stars align\nInfinite universe is mine\n\nBlack holes and shooting stars\nWe've traveled so very far\nNo looking back, no return\nWatching the galaxies burn"
     },
   ],
   articles: [
@@ -84,30 +82,31 @@ const INITIAL_DATA: SiteData = {
       coverUrl: 'https://images.unsplash.com/photo-1598653222000-6b7b7a552625?q=80&w=2070&auto=format&fit=crop',
       linkedTrackId: '1'
     },
-    { 
-      id: '2', 
-      title: '东京巡演日记：霓虹灯下的赛博梦境', 
-      category: '#TOUR_LIFE', 
-      date: '2025.01.20', 
-      excerpt: '涉谷的雨夜，Livehouse 里沸腾的人群，以及那些在后台发生的未曾公开的故事。另外，宣布下一站：首尔。',
-      coverUrl: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=2070&auto=format&fit=crop',
-      linkedTrackId: '2'
-    }
   ],
   artists: [
     { id: '1', name: 'VES', role: 'Main Vocal / Producer', avatarUrl: 'https://images.unsplash.com/photo-1529518969858-8baa65152fc8?q=80&w=2070&auto=format&fit=crop', status: 'active' },
-    { id: '2', name: 'NEON-X', role: 'Synth / Visuals', avatarUrl: 'https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?q=80&w=1780&auto=format&fit=crop', status: 'active' }
   ],
   resources: [
       {
           id: '1',
-          title: 'Neon Dreams - Stems Pack',
-          description: '包含专辑中所有鼓点、贝斯和合成器分轨文件，供 Remix 使用。',
-          type: 'audio',
+          title: 'Neon Dreams - Project Files',
+          description: 'Ableton Live 工程文件，包含所有未混音分轨。',
+          type: 'project',
           provider: 'aliyun',
+          link: 'https://www.aliyundrive.com/s/example',
+          accessCode: 'VES1',
+          size: '4.2 GB',
+          date: '2025.02.20'
+      },
+      {
+          id: '2',
+          title: 'Exclusive Sample Pack Vol.1',
+          description: '超过 500 个独家设计的 Glitch 和 Bass 采样。',
+          type: 'archive',
+          provider: 'quark',
           link: '#',
           accessCode: '8888',
-          size: '1.2 GB',
+          size: '850 MB',
           date: '2025.01.15'
       }
   ],
@@ -117,11 +116,6 @@ const INITIAL_DATA: SiteData = {
     addressLine1: 'Neo-Tokyo District 9',
     addressLine2: 'Block 42-A',
     footerText: 'AUDIO VISUAL EXPERIENCE • DESIGNED FOR THE FUTURE • HIGH FIDELITY STREAMING •'
-  },
-  integrations: {
-    aliDrive: { enabled: false, clientId: '', secretKey: '', refreshToken: '', publicDomain: '' },
-    oneDrive: { enabled: false, clientId: '', secretKey: '', refreshToken: '', publicDomain: '' },
-    cloudflare: { enabled: false, accessKey: '', secretKey: '', bucket: '', endpoint: '' }
   }
 };
 
@@ -131,22 +125,15 @@ const App: React.FC = () => {
       const savedData = localStorage.getItem('ves_site_data');
       if (savedData) {
         const parsed = JSON.parse(savedData);
-        // Robust Deep Merge to ensure missing keys don't crash the app
         return {
             ...INITIAL_DATA,
             ...parsed,
             hero: { ...INITIAL_DATA.hero, ...(parsed.hero || {}) },
             contact: { ...INITIAL_DATA.contact, ...(parsed.contact || {}) },
             featuredAlbum: { ...INITIAL_DATA.featuredAlbum, ...(parsed.featuredAlbum || {}) },
-            integrations: {
-                aliDrive: { ...INITIAL_DATA.integrations.aliDrive, ...(parsed.integrations?.aliDrive || {}) },
-                oneDrive: { ...INITIAL_DATA.integrations.oneDrive, ...(parsed.integrations?.oneDrive || {}) },
-                cloudflare: { ...INITIAL_DATA.integrations.cloudflare, ...(parsed.integrations?.cloudflare || {}) },
-            },
             resources: parsed.resources || INITIAL_DATA.resources,
             tracks: parsed.tracks || INITIAL_DATA.tracks,
             articles: parsed.articles || INITIAL_DATA.articles,
-            artists: parsed.artists || INITIAL_DATA.artists,
             navigation: parsed.navigation || INITIAL_DATA.navigation
         };
       }
@@ -214,6 +201,20 @@ const App: React.FC = () => {
   };
 
   const handlePlayTrack = async (track: Track) => {
+    // If it's a Netease track, we don't use the global audio element
+    if (track.neteaseId) {
+        // For Netease tracks, we might just open the modal details or 
+        // simply ensure the global player stops so they don't overlap.
+        if (audioRef.current) {
+            audioRef.current.pause();
+            setIsPlaying(false);
+        }
+        setCurrentTrackId(track.id);
+        // Logic to handle Netease playback state is limited due to iframe cross-origin
+        // We just set it as "active" in UI
+        return;
+    }
+
     // 1. Toggle if same track
     if (currentTrackId === track.id && audioRef.current) {
         if (isPlaying) {
@@ -241,13 +242,10 @@ const App: React.FC = () => {
     newAudio.addEventListener('ended', () => setIsPlaying(false));
     newAudio.addEventListener('play', () => setIsPlaying(true));
     newAudio.addEventListener('pause', () => setIsPlaying(false));
-    newAudio.addEventListener('error', (e) => {
-        console.error("Audio playback error:", (e.target as HTMLAudioElement).error);
-    });
-
+    
     audioRef.current = newAudio;
 
-    // 4. Connect to Visualizer
+    // 4. Connect to Visualizer (Browser Policy Permitting)
     try {
         if (!audioContextRef.current) {
             const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
@@ -260,12 +258,18 @@ const App: React.FC = () => {
             await audioContextRef.current.resume();
         }
         if (analyserRef.current && audioContextRef.current) {
+            // Note: createMediaElementSource often fails with CORS if not handled perfectly on server
+            // Wrapping in try/catch
+            try {
                 const source = audioContextRef.current.createMediaElementSource(newAudio);
                 source.connect(analyserRef.current);
+            } catch (e) {
+                // Fallback: Audio plays but visualizer might not work
+                console.log("Visualizer connection skipped due to CORS");
+            }
         }
         setAnalyser(analyserRef.current);
     } catch (err) {
-        console.warn("Visualizer setup failed (CORS likely).", err);
         setAnalyser(null);
     }
 
@@ -392,7 +396,7 @@ const App: React.FC = () => {
       </AnimatePresence>
 
       <AnimatePresence>
-        {showGlobalPlayer && currentTrack && (
+        {showGlobalPlayer && currentTrack && !currentTrack.neteaseId && (
             <GlobalPlayer 
                 track={currentTrack}
                 isPlaying={isPlaying}

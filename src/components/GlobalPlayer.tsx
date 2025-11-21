@@ -32,11 +32,11 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
         
         {/* Track Info */}
         <div className="flex items-center gap-4 min-w-0 w-1/3 md:w-1/4 cursor-pointer group" onClick={onOpenDetail}>
-          <div className={`relative w-12 h-12 md:w-14 md:h-14 rounded overflow-hidden shrink-0 border border-white/10 group-hover:border-hot-pink/50 transition-colors ${isPlaying ? 'ring-2 ring-hot-pink/50' : ''}`}>
+          <div className={`relative w-12 h-12 md:w-14 md:h-14 rounded overflow-hidden shrink-0 border border-white/10 group-hover:border-hot-pink/50 transition-colors ${isPlaying ? 'shadow-[0_0_15px_rgba(255,0,128,0.4)]' : ''}`}>
              <img 
                 src={track.coverUrl} 
                 alt={track.title} 
-                className={`w-full h-full object-cover transition-all duration-500 ${isPlaying ? 'animate-pulse opacity-80' : 'opacity-100'}`} 
+                className={`w-full h-full object-cover transition-all duration-500 ${isPlaying ? 'animate-pulse opacity-90' : 'opacity-100'}`} 
              />
              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Maximize2 size={16} className="text-white" />
@@ -57,7 +57,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
                     e.stopPropagation(); 
                     onPlayToggle(); 
                 }}
-                className="w-10 h-10 rounded-full bg-white text-midnight flex items-center justify-center hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+                className="w-10 h-10 rounded-full bg-white text-midnight flex items-center justify-center hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,255,255,0.3)] active:scale-95"
                 aria-label={isPlaying ? "Pause" : "Play"}
               >
                  {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}

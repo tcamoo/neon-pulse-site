@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, ArrowRight, Hash, Play, Pause, Activity } from 'lucide-react';
+import { Calendar, ArrowRight, Hash, Play, Pause, Newspaper } from 'lucide-react';
 import type { Article } from '../types';
 
 interface ArticleSectionProps {
@@ -13,34 +13,26 @@ interface ArticleSectionProps {
 
 const ArticleSection: React.FC<ArticleSectionProps> = ({ articles, onPlayLinkedTrack, currentTrackId, isPlaying }) => {
   return (
-    <section id="live" className="py-32 bg-surface text-slate-200 overflow-hidden relative">
-      {/* Background Noise/Texture */}
-      <div className="absolute inset-0 bg-[#0B1121] opacity-90"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(6,182,212,0.05)_0%,transparent_70%)]"></div>
+    <section id="live" className="py-20 bg-[#0B1121] text-slate-200 overflow-hidden relative">
+      {/* Tight Grid Background */}
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:30px_30px] opacity-50"></div>
       
       <div className="container mx-auto px-6 max-w-6xl relative z-10">
         
-        <div className="flex flex-col md:flex-row items-end justify-between mb-20 border-b border-white/10 pb-8">
+        <div className="flex items-center justify-between mb-10 border-l-4 border-lime-punch pl-4">
             <div>
-                <div className="flex items-center gap-2 mb-4">
-                    <span className="w-2 h-2 bg-electric-cyan rounded-full animate-pulse"></span>
-                    <span className="font-mono font-bold text-xs text-electric-cyan uppercase tracking-widest">News & Updates</span>
-                </div>
-                <h2 className="font-display font-black text-5xl md:text-7xl text-white leading-none">
-                    TRANSMISSION <br/> <span className="text-transparent bg-clip-text bg-gradient-to-r from-lime-punch to-electric-cyan">LOGS</span>
+                <h2 className="font-display font-black text-3xl md:text-5xl text-white leading-none mb-1">
+                    LOGS <span className="text-slate-600">&</span> UPDATES
                 </h2>
+                <p className="font-mono text-xs text-slate-500 uppercase tracking-wider">Transmission Feed from the Void</p>
             </div>
-            <div className="hidden md:flex items-center gap-4">
-                <button className="px-6 py-3 rounded-full border border-white/10 hover:bg-white/10 transition-colors text-sm font-bold uppercase tracking-wider flex items-center gap-2">
-                    <Activity size={16} /> All Posts
-                </button>
-            </div>
+            <Newspaper className="text-lime-punch opacity-50" size={32} />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {articles.length === 0 ? (
-              <div className="col-span-full py-20 text-center border border-dashed border-white/10 rounded-3xl">
-                 <h3 className="font-display text-3xl text-white/30">NO SIGNAL DETECTED</h3>
+              <div className="col-span-full py-16 text-center border border-dashed border-white/10 rounded-xl bg-white/5">
+                 <h3 className="font-display text-xl text-white/30">NO SIGNAL DETECTED</h3>
               </div>
             ) : (
               articles.map((article, index) => {
@@ -49,74 +41,61 @@ const ArticleSection: React.FC<ArticleSectionProps> = ({ articles, onPlayLinkedT
                 return (
                     <motion.div 
                         key={article.id}
-                        initial={{ opacity: 0, y: 30 }}
+                        initial={{ opacity: 0, y: 20 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.1 }}
                         viewport={{ once: true }}
-                        className="group relative bg-midnight/50 border border-white/5 rounded-2xl overflow-hidden hover:border-electric-cyan/50 transition-colors duration-500 flex flex-col h-full"
+                        className="group relative h-80 rounded-2xl overflow-hidden border border-white/10 hover:border-lime-punch/50 transition-all duration-500"
                     >
-                        {/* Image Container */}
-                        <div className="relative h-64 overflow-hidden">
-                            <img 
-                                src={article.coverUrl} 
-                                alt={article.title} 
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-midnight via-transparent to-transparent opacity-80"></div>
-                            
-                            {/* Category Tag */}
+                        {/* Background Image with Zoom */}
+                        <img 
+                            src={article.coverUrl} 
+                            alt={article.title} 
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" 
+                        />
+                        
+                        {/* Gradient Overlay - Stronger at bottom for text readability */}
+                        <div className="absolute inset-0 bg-gradient-to-t from-midnight via-midnight/50 to-transparent opacity-90"></div>
+                        
+                        {/* Content Overlay */}
+                        <div className="absolute inset-0 p-6 flex flex-col justify-end">
                             <div className="absolute top-4 left-4">
-                                <span className="px-3 py-1 bg-black/60 backdrop-blur-md border border-white/10 rounded-md text-[10px] font-bold font-mono text-lime-punch uppercase tracking-wider flex items-center gap-1">
+                                <span className="px-2 py-1 bg-black/50 backdrop-blur-md border border-white/10 rounded text-[10px] font-bold font-mono text-lime-punch uppercase tracking-wider flex items-center gap-1">
                                     <Hash size={10} /> {article.category.replace('#', '')}
                                 </span>
                             </div>
 
-                            {/* Floating Music Player if attached */}
                             {article.linkedTrackId && (
                                 <button 
-                                    onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
-                                        e.preventDefault();
-                                        onPlayLinkedTrack(article.linkedTrackId!);
-                                    }}
-                                    className={`absolute bottom-4 right-4 w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-md transition-all duration-300 shadow-xl ${isLinkedTrackPlaying ? 'bg-hot-pink text-white scale-110' : 'bg-white/20 text-white hover:bg-white hover:text-midnight'}`}
+                                    onClick={(e) => { e.preventDefault(); onPlayLinkedTrack(article.linkedTrackId!); }}
+                                    className={`absolute top-4 right-4 w-8 h-8 rounded-full flex items-center justify-center backdrop-blur-md transition-all ${isLinkedTrackPlaying ? 'bg-hot-pink text-white' : 'bg-white/20 text-white hover:bg-white hover:text-midnight'}`}
                                 >
-                                    {isLinkedTrackPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+                                    {isLinkedTrackPlaying ? <Pause size={14} /> : <Play size={14} />}
                                 </button>
                             )}
-                        </div>
 
-                        {/* Content */}
-                        <div className="p-6 flex-1 flex flex-col">
-                            <div className="flex items-center gap-2 text-slate-500 text-xs font-mono mb-3">
-                                <Calendar size={12} />
-                                <span>{article.date}</span>
-                            </div>
-                            
-                            <h3 className="text-2xl font-display font-bold text-white mb-4 leading-tight group-hover:text-electric-cyan transition-colors">
-                                {article.title}
-                            </h3>
-                            
-                            <p className="text-slate-400 text-sm leading-relaxed mb-6 flex-1 line-clamp-3">
-                                {article.excerpt}
-                            </p>
+                            <div className="transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                                <div className="flex items-center gap-2 text-slate-400 text-[10px] font-mono mb-2 opacity-80">
+                                    <Calendar size={10} /> {article.date}
+                                </div>
+                                
+                                <h3 className="text-lg font-display font-bold text-white mb-2 leading-tight group-hover:text-lime-punch transition-colors">
+                                    {article.title}
+                                </h3>
+                                
+                                <p className="text-slate-300 text-xs leading-relaxed line-clamp-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 h-0 group-hover:h-auto">
+                                    {article.excerpt}
+                                </p>
 
-                            <div className="pt-4 border-t border-white/5 flex justify-between items-center">
-                                <button className="text-xs font-bold uppercase tracking-widest text-slate-500 group-hover:text-white transition-colors flex items-center gap-2">
-                                    Read Full Log <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                                </button>
+                                <div className="mt-3 flex items-center gap-2 text-[10px] font-bold uppercase text-electric-cyan opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-100">
+                                    Read Full <ArrowRight size={10} />
+                                </div>
                             </div>
                         </div>
                     </motion.div>
                 );
             }))}
         </div>
-        
-        <div className="mt-16 flex justify-center">
-            <p className="font-mono text-xs text-slate-600 uppercase tracking-widest animate-pulse">
-                End of Transmission
-            </p>
-        </div>
-
       </div>
     </section>
   );

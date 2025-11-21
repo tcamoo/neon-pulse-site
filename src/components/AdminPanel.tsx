@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
-import type { Track, SiteData, Article, Artist, Resource, CloudConfig } from '../types';
+import type { Track, SiteData, Article, Artist, Resource, CloudConfig, ThemeMode } from '../types';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
     Plus, Trash2, X, Activity, Layout, Music, FileText, 
     Mic2, HardDrive, Mail, Database, Save, Link2, 
-    Cloud, Check, AlertCircle, Settings, Disc, Globe, Image, FolderOpen 
+    Cloud, Check, AlertCircle, Settings, Disc, Globe, Image, FolderOpen, Palette
 } from 'lucide-react';
 
 interface AdminPanelProps {
@@ -14,7 +14,7 @@ interface AdminPanelProps {
   onClose: () => void;
 }
 
-type Tab = 'general' | 'music' | 'articles' | 'artists' | 'resources' | 'storage' | 'contact';
+type Tab = 'general' | 'music' | 'articles' | 'artists' | 'resources' | 'storage' | 'contact' | 'theme';
 
 // --- UI Components ---
 
@@ -60,6 +60,43 @@ const StyledSelect = (props: React.SelectHTMLAttributes<HTMLSelectElement>) => (
         </div>
     </div>
 );
+
+// Theme Preview Card
+const ThemeCard = ({ mode, currentMode, onClick, colors, label, desc }: { 
+    mode: ThemeMode, 
+    currentMode: ThemeMode | undefined, 
+    onClick: () => void,
+    colors: string[],
+    label: string,
+    desc: string
+}) => {
+    const isActive = (currentMode || 'cyberpunk') === mode;
+    
+    return (
+        <button 
+            onClick={onClick}
+            className={`relative group w-full text-left bg-black/30 rounded-2xl p-5 border transition-all duration-300 overflow-hidden
+            ${isActive ? 'border-white/60 shadow-[0_0_30px_rgba(255,255,255,0.1)] scale-[1.02]' : 'border-white/10 hover:border-white/30 hover:bg-white/5'}`}
+        >
+            {isActive && (
+                <div className="absolute top-3 right-3 bg-white text-midnight text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1">
+                    <Check size={10} /> ACTIVE
+                </div>
+            )}
+            
+            <div className="flex gap-2 mb-4">
+                {colors.map((c, i) => (
+                    <div key={i} className="w-8 h-8 rounded-full border border-white/10 shadow-lg" style={{ backgroundColor: c }}></div>
+                ))}
+            </div>
+            
+            <h3 className={`font-display font-bold text-lg mb-1 transition-colors ${isActive ? 'text-white' : 'text-slate-300 group-hover:text-white'}`}>
+                {label}
+            </h3>
+            <p className="text-xs text-slate-500 leading-relaxed">{desc}</p>
+        </button>
+    );
+}
 
 // --- Helper Logic ---
 
@@ -249,6 +286,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
           <div className="w-64 bg-black/20 border-r border-white/5 p-4 flex flex-col gap-1 shrink-0 overflow-y-auto custom-scrollbar hidden md:flex">
               <div className="px-4 py-2 text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-2">Modules</div>
               <TabButton id="general" activeTab={activeTab} setActiveTab={setActiveTab} icon={Layout} label="全局设置 (General)" colorClass="bg-hot-pink" />
+              <TabButton id="theme" activeTab={activeTab} setActiveTab={setActiveTab} icon={Palette} label="UI 主题 (Theme)" colorClass="bg-white" />
               <TabButton id="music" activeTab={activeTab} setActiveTab={setActiveTab} icon={Music} label="音乐作品 (Music)" colorClass="bg-electric-cyan" />
               <TabButton id="resources" activeTab={activeTab} setActiveTab={setActiveTab} icon={HardDrive} label="资源挂载 (Netdisk)" colorClass="bg-blue-400" />
               <TabButton id="storage" activeTab={activeTab} setActiveTab={setActiveTab} icon={Database} label="云端存储 (R2/S3)" colorClass="bg-yellow-500" />
@@ -258,7 +296,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
           </div>
 
           {/* Main Content Area */}
-          <div className="flex-1 overflow-y-auto bg-gradient-to-br from-[#0F172A] to-[#0B1121] p-4 md:p-10 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto bg-gradient-to-br from-midnight to-surface p-4 md:p-10 custom-scrollbar transition-colors duration-500">
               <div className="max-w-5xl mx-auto pb-20">
                   
                   {/* === GENERAL TAB === */}
@@ -329,6 +367,50 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ data, updateData, onClose }) =>
                                       </div>
                                   </InputGroup>
                               </div>
+                          </div>
+                      </div>
+                  )}
+
+                  {/* === THEME TAB === */}
+                  {activeTab === 'theme' && (
+                      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                          <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
+                              <Palette className="text-white" />
+                              <h2 className="text-xl font-display font-bold text-white">UI 主题风格 (Appearance)</h2>
+                          </div>
+
+                          <div className="grid md:grid-cols-3 gap-6">
+                               <ThemeCard 
+                                  mode="cyberpunk"
+                                  label="Cyberpunk (Default)"
+                                  desc="经典的午夜蓝背景，搭配霓虹粉与电光蓝。科技感强，适合电子音乐。"
+                                  colors={['#0F172A', '#FF0080', '#06B6D4', '#D9F99D']}
+                                  currentMode={data.theme}
+                                  onClick={() => updateData(prev => ({...prev, theme: 'cyberpunk'}))}
+                               />
+                               <ThemeCard 
+                                  mode="acid"
+                                  label="Acid Rave"
+                                  desc="极高对比度的纯黑背景，搭配酸性绿和警戒橙。具有攻击性的地下俱乐部风格。"
+                                  colors={['#000000', '#CCFF00', '#FF3300', '#FFFFFF']}
+                                  currentMode={data.theme}
+                                  onClick={() => updateData(prev => ({...prev, theme: 'acid'}))}
+                               />
+                               <ThemeCard 
+                                  mode="vaporwave"
+                                  label="Vaporwave Dream"
+                                  desc="深靛蓝与日落紫的碰撞。柔和但高饱和，充满复古未来主义的浪漫情调。"
+                                  colors={['#240046', '#FF9E00', '#E0AAFF', '#7B2CBF']}
+                                  currentMode={data.theme}
+                                  onClick={() => updateData(prev => ({...prev, theme: 'vaporwave'}))}
+                               />
+                          </div>
+
+                          <div className="bg-white/5 border border-white/10 rounded-2xl p-6 mt-8">
+                              <h3 className="font-bold text-white mb-2">Preview Info</h3>
+                              <p className="text-sm text-slate-400">
+                                  切换主题后，全站配色（背景、文字、边框、按钮）将实时更新。该设置将保存到本地及云端（如果启用了同步）。
+                              </p>
                           </div>
                       </div>
                   )}

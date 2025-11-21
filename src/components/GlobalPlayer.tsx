@@ -32,8 +32,12 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
         
         {/* Track Info */}
         <div className="flex items-center gap-4 min-w-0 w-1/3 md:w-1/4 cursor-pointer group" onClick={onOpenDetail}>
-          <div className="relative w-12 h-12 md:w-14 md:h-14 rounded overflow-hidden shrink-0 border border-white/10 group-hover:border-hot-pink/50 transition-colors">
-             <img src={track.coverUrl} alt={track.title} className={`w-full h-full object-cover ${isPlaying ? 'animate-pulse' : ''}`} />
+          <div className={`relative w-12 h-12 md:w-14 md:h-14 rounded overflow-hidden shrink-0 border border-white/10 group-hover:border-hot-pink/50 transition-colors ${isPlaying ? 'ring-2 ring-hot-pink/50' : ''}`}>
+             <img 
+                src={track.coverUrl} 
+                alt={track.title} 
+                className={`w-full h-full object-cover transition-all duration-500 ${isPlaying ? 'animate-pulse opacity-80' : 'opacity-100'}`} 
+             />
              <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Maximize2 size={16} className="text-white" />
              </div>
@@ -49,8 +53,12 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
            <div className="flex items-center gap-6 mb-1 md:mb-2">
               <button className="text-slate-400 hover:text-white transition-colors"><SkipBack size={20} /></button>
               <button 
-                onClick={(e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); onPlayToggle(); }}
+                onClick={(e: React.MouseEvent<HTMLButtonElement>) => { 
+                    e.stopPropagation(); 
+                    onPlayToggle(); 
+                }}
                 className="w-10 h-10 rounded-full bg-white text-midnight flex items-center justify-center hover:scale-105 transition-transform shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+                aria-label={isPlaying ? "Pause" : "Play"}
               >
                  {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" className="ml-0.5" />}
               </button>
@@ -65,7 +73,7 @@ const GlobalPlayer: React.FC<GlobalPlayerProps> = ({
         <div className="md:hidden absolute bottom-0 left-0 w-full h-1 bg-white/10">
             <div 
                 className="h-full bg-hot-pink transition-all duration-100"
-                style={{ width: `${(currentTime / duration) * 100}%` }}
+                style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
             />
         </div>
 

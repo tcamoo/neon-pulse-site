@@ -9,7 +9,7 @@ export interface Track {
   duration: string;
   coverUrl: string;
   plays: number;
-  audioUrl?: string; // For native/uploaded audio
+  audioUrl?: string; // For native/uploaded audio (R2 Direct Link)
   neteaseId?: string; // For Netease Cloud Music iframe
   lyrics?: string;
 }
@@ -33,6 +33,7 @@ export interface Artist {
   status: 'active' | 'guest';
 }
 
+// For Downloadable Resources (Netdisk Links)
 export interface Resource {
   id: string;
   title: string;
@@ -43,6 +44,17 @@ export interface Resource {
   accessCode?: string;
   size?: string;
   date: string;
+}
+
+// For Object Storage Configuration (R2/S3)
+export interface CloudConfig {
+  enabled: boolean;
+  provider: 'r2' | 's3';
+  endpoint: string;
+  accessKeyId: string;
+  secretAccessKey: string;
+  bucketName: string;
+  publicDomain: string; // Critical for generating direct audio links
 }
 
 export interface HeroData {
@@ -64,7 +76,7 @@ export interface FeaturedAlbum {
 export interface NavItem {
   id: string;
   label: string;
-  targetId: string; // e.g., "music", "live", "contact"
+  targetId: string;
 }
 
 export interface ContactConfig {
@@ -83,12 +95,7 @@ export interface SiteData {
   tracks: Track[];
   articles: Article[];
   artists: Artist[];
-  resources: Resource[];
+  resources: Resource[]; // Netdisk Links
+  storage: CloudConfig;  // R2/S3 Config
   contact: ContactConfig;
-}
-
-export interface SocialLink {
-  platform: string;
-  url: string;
-  icon: React.ReactNode;
 }

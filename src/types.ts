@@ -58,6 +58,8 @@ export interface CloudConfig {
   secretKey?: string;
   bucket?: string;
   endpoint?: string;
+  // Public Domain for link generation
+  publicDomain?: string;
   // OAuth / Token Based (OneDrive, Aliyun Drive Personal)
   clientId?: string;
   refreshToken?: string;

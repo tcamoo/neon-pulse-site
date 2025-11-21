@@ -87,7 +87,10 @@ export interface ContactConfig {
   footerText: string;
 }
 
+export type ThemeMode = 'cyberpunk' | 'acid' | 'vaporwave';
+
 export interface SiteData {
+  theme?: ThemeMode; // NEW: UI Theme
   adminPassword?: string; 
   navigation: NavItem[];
   hero: HeroData;
